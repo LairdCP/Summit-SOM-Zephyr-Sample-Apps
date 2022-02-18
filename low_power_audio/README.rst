@@ -87,13 +87,13 @@ Determine Sound Card Number
 Use the command "``cat /proc/asound/cards``" to check the wm8960 sound card
 number. For example:
 
-    .. code-block:: console
+.. code-block:: console
 
-        # cat /proc/asound/cards
-         0 [wm8960audio    ]: wm8960-audio - wm8960-audio
-                              wm8960-audio
-         1 [imxaudioxcvr   ]: imx-audio-xcvr - imx-audio-xcvr
-                              imx-audio-xcvr
+    # cat /proc/asound/cards
+        0 [wm8960audio    ]: wm8960-audio - wm8960-audio
+                            wm8960-audio
+        1 [imxaudioxcvr   ]: imx-audio-xcvr - imx-audio-xcvr
+                            imx-audio-xcvr
 
 Here, the wm8960 sound card number is 0.
 
