@@ -25,20 +25,12 @@
 #define configTICK_RATE_HZ  200
 #define SYSTICK_COUNT_PER_TICK (SYSTICK_COUNTER_FREQ / configTICK_RATE_HZ)
 
-/* Interrupt nesting behaviour configuration. Cortex-M specific. */
-#ifdef __NVIC_PRIO_BITS
-/* __BVIC_PRIO_BITS will be specified when CMSIS is being used. */
-#define configPRIO_BITS __NVIC_PRIO_BITS
-#else
-#define configPRIO_BITS 4 /* 15 priority levels */
-#endif
-
-/* The lowest interrupt priority that can be used in a call to a "set priority"
-function. */
-#define configLIBRARY_LOWEST_INTERRUPT_PRIORITY ((1U << (configPRIO_BITS)) - 1)
 
 /* If block envent exists, then do not allow M7 to enter low power mode.*/
 static uint32_t s_BlockEventCnt = 0;
+
+extern void GPT1_IRQHandler();
+extern void sys_clock_isr(void *arg);
 
 /*******************************************************************************
  * Code
@@ -63,7 +55,8 @@ void vPortSetupTimerInterrupt(void)
     /* Enable timer interrupt */
     GPT_EnableInterrupts(SYSTICK_BASE, kGPT_OutputCompare1InterruptEnable);
 
-    NVIC_SetPriority(SYSTICK_IRQn, configLIBRARY_LOWEST_INTERRUPT_PRIORITY);
+    IRQ_CONNECT(SYSTICK_IRQn, IRQ_PRIO_LOWEST,
+                SYSTICK_HANDLER, NULL, 0);
     /* Enable NVIC interrupt */
     NVIC_EnableIRQ(SYSTICK_IRQn);
     /* Start counting */
@@ -175,8 +168,8 @@ void SYSTICK_HANDLER(void)
         GPT_SetOutputCompareValue(SYSTICK_BASE, kGPT_OutputCompare_Channel1, SYSTICK_COUNT_PER_TICK - 1);
     }
 
-    /* Call FreeRTOS tick handler. */
-    GPT1_IRQHandler();
+    /* Call Zephyr tick handler. */
+    sys_clock_isr(NULL);
 
     /* Add for ARM errata 838869, affects Cortex-M7, Cortex-M7F Store immediate overlapping
     exception return operation might vector to incorrect interrupt */
