@@ -68,6 +68,10 @@ static srtm_status_t APP_SRTM_I2C_SwitchChannel(srtm_i2c_adapter_t adapter,
                                                 srtm_i2c_type_t type,
                                                 uint16_t slaveAddr,
                                                 srtm_i2c_switch_channel channel);
+
+extern void SDMA3_DriverIRQHandler(void);
+extern void I2S3_DriverIRQHandler(void);
+
 /*******************************************************************************
  * Variables
  ******************************************************************************/
@@ -333,8 +337,10 @@ static void APP_SRTM_InitAudioService(void)
     assert(saiAdapter);
 
     /*  Set SAI DMA IRQ Priority. */
-    NVIC_SetPriority(APP_SRTM_DMA_IRQn, APP_SAI_TX_DMA_IRQ_PRIO);
-    NVIC_SetPriority(APP_SRTM_SAI_IRQn, APP_SAI_IRQ_PRIO);
+    IRQ_CONNECT(APP_SRTM_DMA_IRQn, APP_SAI_TX_DMA_IRQ_PRIO,
+                SDMA3_DriverIRQHandler, NULL, 0);
+    IRQ_CONNECT(APP_SRTM_SAI_IRQn, APP_SAI_IRQ_PRIO,
+                I2S3_DriverIRQHandler, NULL, 0);
 
     /* Create and register audio service */
     SRTM_SaiSdmaAdapter_SetTxLocalBuf(saiAdapter, &g_local_buf);
