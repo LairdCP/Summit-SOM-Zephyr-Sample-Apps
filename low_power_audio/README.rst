@@ -80,18 +80,64 @@ NOTES
 
 Playback Command
 ****************
-1.  Use the command "``cat /proc/asound/cards``" to check the wm8960 sound card
-    number. For example:
+
+Determine Sound Card Number
+===========================
+
+Use the command "``cat /proc/asound/cards``" to check the wm8960 sound card
+number. For example:
 
     .. code-block:: console
 
         # cat /proc/asound/cards
-        0 [imxaudioxcvr   ]: imx-audio-xcvr - imx-audio-xcvr
-                        imx-audio-xcvr
-        1 [wm8960audio    ]: wm8960-audio - wm8960-audio
-                        wm8960-audio
+         0 [wm8960audio    ]: wm8960-audio - wm8960-audio
+                              wm8960-audio
+         1 [imxaudioxcvr   ]: imx-audio-xcvr - imx-audio-xcvr
+                              imx-audio-xcvr
 
-    Here, the wm8960 sound card number is 1.
+Here, the wm8960 sound card number is 0.
+
+Play Audio File
+===============
+
+To playback a .wav file:
+
+1.  If you want to playback with pause/resume functionality, use the command:
+
+    .. code-block:: console
+
+        aplay -Dhw:0 -i <wav_file_to_play.wav> -N
+
+    Press the space bar to pause/resume playback.
+
+2.  If you want to playback with low power mode and specified period-size,
+    you can use command such as:
+
+    .. code-block:: console
+
+        aplay -Dhw:0 --buffer-size=xxx --period-size=xxx <wav_file_to_play.wav> -N &
+
+    or
+
+    .. code-block:: console
+
+        aplay -Dhw:0 --buffer-time=xxx --period-time=xxx <wav_file_to_play.wav> -N &
+
+    For example:
+
+    .. code-block:: console
+
+        aplay -Dhw:0 --period-time=500000 --buffer-time=10000000 <wav_file_to_play.wav> -N &
+
+    Now use the following command to trigger the A core to enter suspend mode
+    while audio playback continues to function normally:
+
+    .. code-block:: console
+
+        echo mem > /sys/power/state
+
+    Note: ensure that the A core has enough time to fill the audio buffer before
+    entering into suspend mode.
 
 Running the Demo
 ****************
