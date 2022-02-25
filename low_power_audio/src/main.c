@@ -9,6 +9,8 @@
 #include <sys/printk.h>
 #include <stdint.h>
 #include <string.h>
+#include <logging/log.h>
+#include <pm/pm.h>
 
 #include "rpmsg_lite.h"
 #include "rpmsg_queue.h"
@@ -43,6 +45,7 @@ static LPM_POWER_STATUS_M7 m7_lpm_state = LPM_M7_STATE_RUN;
 #define ServiceBusy (0x5555U)
 #define ServiceIdle (0x0U)
 #define SLEEP_TIME_MS	1
+LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 /*
  * Get button configuration from the devicetree button3 alias. This is mandatory.
@@ -246,11 +249,11 @@ void ShowMCoreStatus(void)
 {
     if (m7_lpm_state == LPM_M7_STATE_STOP)
     {
-        printk("\r\nM7 core entering STOP mode!\r\n");
+        LOG_INF("M7 core entering STOP mode!");
     }
     else if (m7_lpm_state == LPM_M7_STATE_RUN)
     {
-        printk("\r\nM7 core entering RUN mode!\r\n");
+        LOG_INF("M7 core entering RUN mode!");
     }
     else
     {
@@ -284,43 +287,48 @@ void UpdateTargetPowerStatus(void)
 
 void go_to_sleep()
 {
-    printk("%s: start\n", __func__);
     uint32_t irqMask;
     uint64_t counter = 0;
     uint32_t timeoutTicks;
-    uint32_t timeoutMilliSec = 10000;   // 10 seconds
+    uint32_t timeoutMilliSec = 10;   // 10ms
+    struct pm_state_info info;
     // uint32_t timeoutMilliSec = (uint32_t)((uint64_t)1000 * xExpectedIdleTime / configTICK_RATE_HZ);
 
-    irqMask = DisableGlobalIRQ();
+    while (true) {
+        irqMask = DisableGlobalIRQ();
 
-    UpdateTargetPowerStatus();
+        UpdateTargetPowerStatus();
 
-    timeoutTicks = LPM_EnterTicklessIdle(timeoutMilliSec, &counter);
-    if (timeoutTicks) {
-        if (LPM_AllowSleep()) {
-            LPM_MCORE_ChangeM7Clock(LPM_M7_LOW_FREQ);
-            LPM_MCORE_SetPowerStatus(GPC, LPM_M7_STATE_STOP);
-            PreSleepProcessing();
-            ServiceFlagAddr = ServiceIdle;
-            __DSB();
-            __ISB();
-            __WFI();
-            ServiceFlagAddr = ServiceBusy;
-            PostSleepProcessing();
-            LPM_MCORE_ChangeM7Clock(LPM_M7_HIGH_FREQ);
-            LPM_MCORE_SetPowerStatus(GPC, LPM_M7_STATE_RUN);
+        timeoutTicks = LPM_EnterTicklessIdle(timeoutMilliSec, &counter);
+        if (timeoutTicks) {
+            if (LPM_AllowSleep()) {
+                LPM_MCORE_ChangeM7Clock(LPM_M7_LOW_FREQ);
+                LPM_MCORE_SetPowerStatus(GPC, LPM_M7_STATE_STOP);
+                PreSleepProcessing();
+                ServiceFlagAddr = ServiceIdle;
+
+                __DSB();
+                __ISB();
+                __WFI();
+                ServiceFlagAddr = ServiceBusy;
+                PostSleepProcessing();
+
+                LPM_MCORE_ChangeM7Clock(LPM_M7_HIGH_FREQ);
+                LPM_MCORE_SetPowerStatus(GPC, LPM_M7_STATE_RUN);
+            }
+            else
+            {
+                __DSB();
+                __ISB();
+                __WFI();
+            }
         }
-        else
-        {
-            __DSB();
-            __ISB();
-            __WFI();
-        }
+        LPM_ExitTicklessIdle(timeoutTicks, counter);
+
+        EnableGlobalIRQ(irqMask);
+
+        k_sleep(K_SECONDS(1));
     }
-    LPM_ExitTicklessIdle(timeoutTicks, counter);
-
-    EnableGlobalIRQ(irqMask);
-    printk("%s: end\n", __func__);
 }
 
 void app_task(void *p1, void *p2, void *p3)
@@ -335,39 +343,30 @@ void app_task(void *p1, void *p2, void *p3)
     /*
      * Wait For A53 Side Become Ready
      */
-    printk("********************************\r\n");
-    printk(" Wait for Linux kernel to boot up and create the link between M core and A core.\r\n");
-    printk("\r\n");
-    printk("********************************\r\n");
+    LOG_INF("Wait for Linux kernel to boot up and create the link between M core and A core");
     while (srtmState != APP_SRTM_StateLinkedUp)
         ;
-    printk("The rpmsg channel created between M core and A core!\r\n");
-    printk("********************************\r\n");
-    printk("\r\n");
+    LOG_INF("The rpmsg channel created between M core and A core");
 
-    /* Configure GPC */
-    GPC_Init(GPC, APP_PowerUpSlot, APP_PowerDnSlot);
-    GPC_EnableIRQ(GPC, MU1_M7_IRQn);
-    GPC_EnableIRQ(GPC, GPT1_IRQn);
+    LOG_INF("Main thread is now running");
     while (true)
     {
-        printk("\r\nMain thread is now running.\r\n");
-        // go_to_sleep();
-        k_sleep(K_FOREVER);
+        go_to_sleep();
+        // k_sleep(K_FOREVER);
     }
 }
 
 void volume_down_btn_pressed(const struct device *dev, struct gpio_callback *cb,
 		    uint32_t pins)
 {
-	printk("Volume down button pressed at %" PRIu32 "\n", k_cycle_get_32());
+	LOG_DBG("Volume down button pressed at %" PRIu32, k_cycle_get_32());
 
 }
 
 void volume_up_btn_pressed(const struct device *dev, struct gpio_callback *cb,
 		    uint32_t pins)
 {
-	printk("Volume up button pressed at %" PRIu32 "\n", k_cycle_get_32());
+	LOG_DBG("Volume up button pressed at %" PRIu32, k_cycle_get_32());
 }
 
 void read_buttons_task(void *p1, void *p2, void *p3)
@@ -377,8 +376,6 @@ void read_buttons_task(void *p1, void *p2, void *p3)
     ARG_UNUSED(p1);
     ARG_UNUSED(p2);
     ARG_UNUSED(p3);
-
-    printk("%s: start\n", __func__);
 
     if (!device_is_ready(volume_down_btn.port)) {
         __ASSERT(false, "Error - volume down button device is not ready");
@@ -407,13 +404,13 @@ void read_buttons_task(void *p1, void *p2, void *p3)
     gpio_init_callback(&volume_down_btn_cb_data, volume_down_btn_pressed,
                        BIT(volume_down_btn.pin));
     gpio_add_callback(volume_down_btn.port, &volume_down_btn_cb_data);
-	printk("Set up volume down button at %s pin %d\n",
+	LOG_DBG("Set up volume down button at %s pin %d",
            volume_down_btn.port->name, volume_down_btn.pin);
     
     gpio_init_callback(&volume_up_btn_cb_data, volume_up_btn_pressed,
                        BIT(volume_up_btn.pin));
     gpio_add_callback(volume_up_btn.port, &volume_up_btn_cb_data);
-	printk("Set up volume up button at %s pin %d\n",
+	LOG_DBG("Set up volume up button at %s pin %d",
            volume_up_btn.port->name, volume_up_btn.pin);
 }
 
@@ -446,8 +443,8 @@ void main(void)
         CCM->PLL_CTRL[i].PLL_CTRL = kCLOCK_ClockNeededRun;
     }
 
-    printk("\r\n####################  LOW POWER AUDIO TASK ####################\n\r\n");
-    printk("    Build Time: %s--%s \r\n", __DATE__, __TIME__);
+    LOG_INF("LOW POWER AUDIO TASK");
+    LOG_INF("Build Time: %s--%s", __DATE__, __TIME__);
 
     vPortSetupTimerInterrupt();
 

@@ -37,12 +37,6 @@ target_sources(app PRIVATE
     # FreeRTOS
     ${modules_dir}/hal/nxp/mcux/mcux-sdk/components/srtm/port/srtm_message_pool.c
 
-    # Workaround until the GPC driver is properly pulled in to the NXP HAL
-    ${modules_dir}/hal/nxp/mcux/mcux-sdk/drivers/gpc_2/fsl_gpc.c
-
-    # Workaround until the GPT driver is properly pulled in to the NXP HAL
-    ${modules_dir}/hal/nxp/mcux/mcux-sdk/drivers/gpt/fsl_gpt.c
-
     # Workaround until the SAI SDMA driver is properly pulled in to the NXP HAL
     ${modules_dir}/hal/nxp/mcux/mcux-sdk/drivers/sai/fsl_sai_sdma.c
     ${modules_dir}/hal/nxp/mcux/mcux-sdk/drivers/sai/fsl_sai.c
@@ -60,12 +54,6 @@ include_directories(
 	${rpmsg_lite_dir}/lib/include/environment/zephyr
     ${rpmsg_lite_dir}/lib/include/platform/imx8mp_m7
     ${CMAKE_SOURCE_DIR}/include
-
-    # Workaround until the GPC driver is properly pulled in to the NXP HAL
-    ${modules_dir}/hal/nxp/mcux/mcux-sdk/drivers/gpc_2
-
-    # Workaround until the GPT driver is properly pulled in to the NXP HAL
-    ${modules_dir}/hal/nxp/mcux/mcux-sdk/drivers/gpt
 
     # Workaround until the SAI SDMA driver is properly pulled in to the NXP HAL
     ${modules_dir}/hal/nxp/mcux/mcux-sdk/drivers/sai

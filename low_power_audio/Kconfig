@@ -22,4 +22,8 @@ config RPMSG_LITE_APP_STACKSIZE
 
 endmenu
 
+module = MAIN
+module-str = MAIN
+source "subsys/logging/Kconfig.template.log_config"
+
 source "Kconfig.zephyr"
