@@ -17,6 +17,8 @@
 #include "fsl_mu.h"
 #include "irq.h"
 #include <drivers/ipm.h>
+#include <logging/log.h>
+LOG_MODULE_REGISTER(rpmsg_platform, LOG_LEVEL_DBG);
 
 #if defined(RL_USE_ENVIRONMENT_CONTEXT) && (RL_USE_ENVIRONMENT_CONTEXT == 1)
 #error "This RPMsg-Lite port requires RL_USE_ENVIRONMENT_CONTEXT set to 0"
@@ -91,7 +93,7 @@ void platform_notify(uint32_t vector_id)
 
     ret = ipm_send(ipm_handle, 0, RPMSG_MU_CHANNEL, &msg, 1);
     if (ret != 0) {
-        printk("%s : ipm_send failed! ret: %d\r\n", __func__, ret);
+        LOG_WRN("ipm_send failed! ret: %d", ret);
     }
 
     env_unlock_mutex(platform_lock);
@@ -260,7 +262,7 @@ int32_t platform_init(void)
 	/* setup IPM */
 	ipm_handle = device_get_binding(CONFIG_RPMSG_LITE_IPC_DEV_NAME);
 	if (!ipm_handle) {
-		printk("%s: Failed to find ipm device\n", __func__);
+		LOG_ERR("%s: Failed to find ipm device", __func__);
 		return -1;
 	}
 	if (!device_is_ready(ipm_handle)) {

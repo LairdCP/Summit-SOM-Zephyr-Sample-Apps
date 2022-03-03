@@ -9,7 +9,8 @@
 
 #include <zephyr.h>
 
-#include "fsl_i2c.h"
+#include <drivers/i2c.h>
+#include <devicetree.h>
 #include "fsl_iomuxc.h"
 #include "fsl_mu.h"
 
@@ -29,6 +30,7 @@
  * Definitions
  ******************************************************************************/
 #define APP_MS2TICK(ms) ((ms + portTICK_PERIOD_MS - 1) / portTICK_PERIOD_MS)
+#define I2C_DEVICE_NAME DT_PROP(DT_NODELABEL(i2c3), label)
 
 #define BUFFER_LEN (128 * 1024)
 #if (defined(__ICCARM__))
@@ -350,11 +352,7 @@ static void APP_SRTM_InitAudioService(void)
 
 static void APP_SRTM_InitI2CDevice(void)
 {
-    i2c_master_config_t masterConfig;
-
-    I2C_MasterGetDefaultConfig(&masterConfig);
-    masterConfig.baudRate_Bps = APP_I2C_BAUDRATE;
-    I2C_MasterInit(CODEC_I2C, &masterConfig, CODEC_I2C_CLOCK_FREQ);
+    /* In Zephyr, this is handled by the I2C driver itself */
 }
 
 static void APP_SRTM_InitI2CService(void)
@@ -455,39 +453,32 @@ static srtm_status_t APP_SRTM_I2C_SwitchChannel(srtm_i2c_adapter_t adapter,
 
 static status_t SRTM_I2C_Send(I2C_Type *base, uint8_t slaveAddr, uint8_t *buf, uint8_t len, uint16_t flags)
 {
+    ARG_UNUSED(base);
+    ARG_UNUSED(flags);
+
     status_t reVal = kStatus_Success;
-    i2c_master_transfer_t masterXfer;
-
-    memset(&masterXfer, 0U, sizeof(i2c_master_transfer_t));
-
-    masterXfer.slaveAddress = slaveAddr;
-    masterXfer.direction    = kI2C_Write;
-    masterXfer.data         = buf;
-    masterXfer.dataSize     = len;
-    masterXfer.flags        = kI2C_TransferDefaultFlag;
 
     LPM_IncreseBlockSleepCnt();
-    reVal = I2C_MasterTransferBlocking(base, &masterXfer);
+    reVal = i2c_write(device_get_binding(I2C_DEVICE_NAME),
+                      buf,
+                      sizeof(buf),
+                      slaveAddr);
     LPM_DecreaseBlockSleepCnt();
     return reVal;
 }
 
 static status_t SRTM_I2C_Read(I2C_Type *base, uint8_t slaveAddr, uint8_t *buf, uint8_t len, uint16_t flags)
 {
+    ARG_UNUSED(base);
+    ARG_UNUSED(flags);
+
     status_t reVal = kStatus_Success;
 
-    i2c_master_transfer_t masterXfer;
-
-    memset(&masterXfer, 0U, sizeof(i2c_master_transfer_t));
-
-    masterXfer.slaveAddress = slaveAddr;
-    masterXfer.direction    = kI2C_Read;
-    masterXfer.data         = buf;
-    masterXfer.dataSize     = len;
-    masterXfer.flags        = kI2C_TransferDefaultFlag;
-
     LPM_IncreseBlockSleepCnt();
-    reVal = I2C_MasterTransferBlocking(base, &masterXfer);
+    reVal = i2c_read(device_get_binding(I2C_DEVICE_NAME),
+                     buf,
+                     len,
+                     slaveAddr);
     LPM_DecreaseBlockSleepCnt();
 
     return reVal;

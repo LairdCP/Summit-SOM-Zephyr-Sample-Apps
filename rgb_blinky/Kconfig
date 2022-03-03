@@ -1,0 +1,15 @@
+#
+# Copyright (c) 2022 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menu "RGB Blinky Example"
+
+endmenu
+
+module = RGB_BLINKY
+module-str = RGB_BLINKY
+source "subsys/logging/Kconfig.template.log_config"
+
+source "Kconfig.zephyr"

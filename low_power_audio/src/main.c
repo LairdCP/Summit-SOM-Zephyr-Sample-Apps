@@ -6,6 +6,7 @@
 
 #include <zephyr.h>
 #include <drivers/gpio.h>
+#include <drivers/clock_control.h>
 #include <sys/printk.h>
 #include <stdint.h>
 #include <string.h>
@@ -23,7 +24,10 @@
 #include "fsl_i2c.h"
 #include "fsl_gpio.h"
 #include "fsl_iomuxc.h"
+#include "fsl_uart.h"
 #include "app_srtm.h"
+
+LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 /*******************************************************************************
  * Definitions
@@ -39,44 +43,23 @@
 static LPM_POWER_STATUS_M7 m7_lpm_state = LPM_M7_STATE_RUN;
 /* Using SRC_GPR10 register to sync the tasks status with A core */
 #define ServiceFlagAddr SRC->GPR10
-/* The flags,ServiceBusy and ServiceIdle, shows if the service task is running or not.
- * If the task is runing, A core should not put DDR in self-refresh mode after A core enters supsend.
+/* The flags,ServiceBusy and ServiceIdle, shows if the service task is running
+ * or not. If the task is runing, A core should not put DDR in self-refresh mode
+ * after A core enters supsend.
  */
 #define ServiceBusy (0x5555U)
 #define ServiceIdle (0x0U)
 #define SLEEP_TIME_MS	1
-LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
-
-/*
- * Get button configuration from the devicetree button3 alias. This is mandatory.
- */
-#define VOLUME_DOWN_BTN_NODE	DT_ALIAS(volumedownbtn)
-#define VOLUME_UP_BTN_NODE	    DT_ALIAS(volumeupbtn)
-#if !DT_NODE_HAS_STATUS(VOLUME_DOWN_BTN_NODE, okay)
-#error "Unsupported board: volumedownbtn devicetree alias is not defined"
-#endif
-#if !DT_NODE_HAS_STATUS(VOLUME_UP_BTN_NODE, okay)
-#error "Unsupported board: volumeupbtn devicetree alias is not defined"
-#endif
-static const struct gpio_dt_spec volume_down_btn = GPIO_DT_SPEC_GET_OR(
-                                  VOLUME_DOWN_BTN_NODE, gpios, {0});
-static const struct gpio_dt_spec volume_up_btn = GPIO_DT_SPEC_GET_OR(
-                                  VOLUME_UP_BTN_NODE, gpios, {0});
-static struct gpio_callback volume_down_btn_cb_data;
-static struct gpio_callback volume_up_btn_cb_data;
+#define DEBUG_UART_DEVICE       DT_NODELABEL(uart4)
 
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
-void BOARD_I2C_ReleaseBus(void);
 extern volatile app_srtm_state_t srtmState;
 
 /* Globals */
-// static char app_buf[512]; /* Each RPMSG buffer can carry less than 512 payload */
 static struct k_thread app_thread;
-// static struct k_thread read_buttons_thread;
 K_THREAD_STACK_DEFINE(app_stack, CONFIG_RPMSG_LITE_APP_STACKSIZE);
-// K_THREAD_STACK_DEFINE(read_buttons_stack, 1024);
 
 /***** CODE *****/
 
@@ -88,14 +71,20 @@ void BOARD_PeripheralRdcSetting(void)
     assignment.domainId = DOMAIN_ID;
 
     /* Only configure the RDC if the RDC peripheral write access is allowed. */
-    if ((0x1U & RDC_GetPeriphAccessPolicy(RDC, kRDC_Periph_RDC, assignment.domainId)) != 0U)
+    if ((0x1U & RDC_GetPeriphAccessPolicy(RDC, kRDC_Periph_RDC,
+                                          assignment.domainId)) != 0U)
     {
-        RDC_SetMasterDomainAssignment(RDC, kRDC_Master_SDMA3_PERIPH, &assignment);
-        RDC_SetMasterDomainAssignment(RDC, kRDC_Master_SDMA3_BURST, &assignment);
-        RDC_SetMasterDomainAssignment(RDC, kRDC_Master_SDMA3_SPBA2, &assignment);
+        RDC_SetMasterDomainAssignment(RDC, kRDC_Master_SDMA3_PERIPH,
+                                      &assignment);
+        RDC_SetMasterDomainAssignment(RDC, kRDC_Master_SDMA3_BURST,
+                                      &assignment);
+        RDC_SetMasterDomainAssignment(RDC, kRDC_Master_SDMA3_SPBA2,
+                                      &assignment);
 
         RDC_GetDefaultPeriphAccessConfig(&periphConfig);
-        /* Do not allow the A53 domain(domain0) to access the following peripherals */
+        /* Do not allow the A53 domain(domain0) to access the following
+         * peripherals
+         */
         periphConfig.policy = RDC_DISABLE_A53_ACCESS;
         periphConfig.periph = kRDC_Periph_SAI3;
         RDC_SetPeriphAccessConfig(RDC, &periphConfig);
@@ -110,77 +99,32 @@ void BOARD_PeripheralRdcSetting(void)
     }
 }
 
-static void i2c_release_bus_delay(void)
+void SAI_SetPinMux(void)
 {
-    uint32_t i = 0;
-    for (i = 0; i < I2C_RELEASE_BUS_COUNT; i++)
-    {
-        __NOP();
-    }
-}
-
-/* FUNCTION ************************************************************************************************************
- *
- * Function Name : BOARD_I2C_ConfigurePins
- * Description   : Configures pin routing and optionally pin electrical features.
- *
- * END ****************************************************************************************************************/
-void BOARD_I2C_ConfigurePins(void) {                       /*!< Function assigned for the core: Cortex-M7F[m7] */
-    IOMUXC_SetPinMux(IOMUXC_I2C3_SCL_I2C3_SCL, 1U);
-    IOMUXC_SetPinConfig(IOMUXC_I2C3_SCL_I2C3_SCL, 
+    IOMUXC_SetPinMux(IOMUXC_SAI3_MCLK_AUDIOMIX_SAI3_MCLK, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_SAI3_MCLK_AUDIOMIX_SAI3_MCLK, 
+                        IOMUXC_SW_PAD_CTL_PAD_DSE(3U) |
+                        IOMUXC_SW_PAD_CTL_PAD_FSEL_MASK |
                         IOMUXC_SW_PAD_CTL_PAD_PUE_MASK |
-                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK |
-                        IOMUXC_SW_PAD_CTL_PAD_PE_MASK);
-    IOMUXC_SetPinMux(IOMUXC_I2C3_SDA_I2C3_SDA, 1U);
-    IOMUXC_SetPinConfig(IOMUXC_I2C3_SDA_I2C3_SDA, 
+                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK);
+    IOMUXC_SetPinMux(IOMUXC_SAI3_TXC_AUDIOMIX_SAI3_TX_BCLK, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_SAI3_TXC_AUDIOMIX_SAI3_TX_BCLK, 
+                        IOMUXC_SW_PAD_CTL_PAD_DSE(3U) |
+                        IOMUXC_SW_PAD_CTL_PAD_FSEL_MASK |
                         IOMUXC_SW_PAD_CTL_PAD_PUE_MASK |
-                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK |
-                        IOMUXC_SW_PAD_CTL_PAD_PE_MASK);
-}
-
-void BOARD_I2C_ReleaseBus(void)
-{
-    uint8_t i                    = 0;
-    gpio_pin_config_t pin_config = {kGPIO_DigitalOutput, 1, kGPIO_NoIntmode};
-
-    IOMUXC_SetPinMux(IOMUXC_I2C3_SCL_GPIO5_IO18, 0U);
-    IOMUXC_SetPinConfig(IOMUXC_I2C3_SCL_GPIO5_IO18, IOMUXC_SW_PAD_CTL_PAD_DSE(3U) | IOMUXC_SW_PAD_CTL_PAD_FSEL_MASK |
-                                                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK);
-    IOMUXC_SetPinMux(IOMUXC_I2C3_SDA_GPIO5_IO19, 0U);
-    IOMUXC_SetPinConfig(IOMUXC_I2C3_SDA_GPIO5_IO19, IOMUXC_SW_PAD_CTL_PAD_DSE(3U) | IOMUXC_SW_PAD_CTL_PAD_FSEL_MASK |
-                                                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK);
-    GPIO_PinInit(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, &pin_config);
-    GPIO_PinInit(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, &pin_config);
-
-    /* Drive SDA low first to simulate a start */
-    GPIO_PinWrite(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, 0U);
-    i2c_release_bus_delay();
-
-    /* Send 9 pulses on SCL and keep SDA high */
-    for (i = 0; i < 9; i++)
-    {
-        GPIO_PinWrite(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, 0U);
-        i2c_release_bus_delay();
-
-        GPIO_PinWrite(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, 1U);
-        i2c_release_bus_delay();
-
-        GPIO_PinWrite(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, 1U);
-        i2c_release_bus_delay();
-    }
-
-    /* Send stop */
-    GPIO_PinWrite(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, 0U);
-    i2c_release_bus_delay();
-
-    GPIO_PinWrite(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, 0U);
-    i2c_release_bus_delay();
-
-    GPIO_PinWrite(I2C_RELEASE_SCL_GPIO, I2C_RELEASE_SCL_PIN, 1U);
-    i2c_release_bus_delay();
-
-    GPIO_PinWrite(I2C_RELEASE_SDA_GPIO, I2C_RELEASE_SDA_PIN, 1U);
-    i2c_release_bus_delay();
+                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK);
+    IOMUXC_SetPinMux(IOMUXC_SAI3_TXD_AUDIOMIX_SAI3_TX_DATA0, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_SAI3_TXD_AUDIOMIX_SAI3_TX_DATA0, 
+                        IOMUXC_SW_PAD_CTL_PAD_DSE(3U) |
+                        IOMUXC_SW_PAD_CTL_PAD_FSEL_MASK |
+                        IOMUXC_SW_PAD_CTL_PAD_PUE_MASK |
+                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK);
+    IOMUXC_SetPinMux(IOMUXC_SAI3_TXFS_AUDIOMIX_SAI3_TX_SYNC, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_SAI3_TXFS_AUDIOMIX_SAI3_TX_SYNC, 
+                        IOMUXC_SW_PAD_CTL_PAD_DSE(3U) |
+                        IOMUXC_SW_PAD_CTL_PAD_FSEL_MASK |
+                        IOMUXC_SW_PAD_CTL_PAD_PUE_MASK |
+                        IOMUXC_SW_PAD_CTL_PAD_HYS_MASK);
 }
 
 void LPM_MCORE_ChangeM7Clock(LPM_M7_CLOCK_SPEED target)
@@ -199,7 +143,8 @@ void LPM_MCORE_ChangeM7Clock(LPM_M7_CLOCK_SPEED target)
             if (CLOCK_GetRootMux(kCLOCK_RootM7) != kCLOCK_M7RootmuxSysPll1)
             {
                 CLOCK_SetRootDivider(kCLOCK_RootM7, 1U, 1U);
-                CLOCK_SetRootMux(kCLOCK_RootM7, kCLOCK_M7RootmuxSysPll1); /* switch cortex-m7 to SYSTEM PLL1 */
+                /* switch cortex-m7 to SYSTEM PLL1 */
+                CLOCK_SetRootMux(kCLOCK_RootM7, kCLOCK_M7RootmuxSysPll1);
             }
             break;
         default:
@@ -207,7 +152,8 @@ void LPM_MCORE_ChangeM7Clock(LPM_M7_CLOCK_SPEED target)
     }
 }
 
-void LPM_MCORE_SetPowerStatus(GPC_Type *base, LPM_POWER_STATUS_M7 targetPowerMode)
+void LPM_MCORE_SetPowerStatus(GPC_Type *base,
+                              LPM_POWER_STATUS_M7 targetPowerMode)
 {
     gpc_lpm_config_t config;
     config.enCpuClk              = false;
@@ -235,25 +181,44 @@ void LPM_MCORE_SetPowerStatus(GPC_Type *base, LPM_POWER_STATUS_M7 targetPowerMod
 void PreSleepProcessing(void)
 {
     APP_SRTM_Suspend();
-    // DbgConsole_Deinit();
+    UART_Deinit((UART_Type *)DT_REG_ADDR(DEBUG_UART_DEVICE));
 }
 
 void PostSleepProcessing(void)
 {
+	uart_config_t uart_config;
+	uint32_t clock_freq;
+    const struct device *clock_dev;
+    clock_control_subsys_t clock_subsys;
+
     APP_SRTM_Resume();
-    // DbgConsole_Init(BOARD_DEBUG_UART_INSTANCE, BOARD_DEBUG_UART_BAUDRATE, BOARD_DEBUG_UART_TYPE,
-    //                 BOARD_DEBUG_UART_CLK_FREQ);
+
+    /* Re-initialize the UART */
+    clock_dev = DEVICE_DT_GET(DT_CLOCKS_CTLR(DEBUG_UART_DEVICE));
+    clock_subsys = (clock_control_subsys_t)DT_CLOCKS_CELL(DEBUG_UART_DEVICE,
+                                                          name);
+	if (clock_control_get_rate(clock_dev, clock_subsys, &clock_freq) != 0) {
+		clock_freq = 0;
+	}
+
+	UART_GetDefaultConfig(&uart_config);
+	uart_config.enableTx = true;
+	uart_config.enableRx = true;
+	uart_config.baudRate_Bps = DT_PROP(DEBUG_UART_DEVICE, current_speed);
+
+	UART_Init((UART_Type *)DT_REG_ADDR(DEBUG_UART_DEVICE), &uart_config,
+              clock_freq);
 }
 
 void ShowMCoreStatus(void)
 {
     if (m7_lpm_state == LPM_M7_STATE_STOP)
     {
-        LOG_INF("M7 core entering STOP mode!");
+        LOG_INF("M7 core entering STOP mode");
     }
     else if (m7_lpm_state == LPM_M7_STATE_RUN)
     {
-        LOG_INF("M7 core entering RUN mode!");
+        LOG_INF("M7 core entering RUN mode");
     }
     else
     {
@@ -264,8 +229,9 @@ void ShowMCoreStatus(void)
 void UpdateTargetPowerStatus(void)
 {
     /*
-     * The m7_lpm_state merely indicates what the power state the M core finally should be.
-     * In this demo, if there is no audio playback, M core will be set to STOP mode finally.
+     * The m7_lpm_state merely indicates what the power state the M core
+     * finally should be. In this demo, if there is no audio playback, M core
+     * will be set to STOP mode finally.
      */
     LPM_POWER_STATUS_M7 m7_target_lpm;
 
@@ -285,14 +251,12 @@ void UpdateTargetPowerStatus(void)
     }
 }
 
-void go_to_sleep()
+void LPM_Sleep()
 {
     uint32_t irqMask;
     uint64_t counter = 0;
     uint32_t timeoutTicks;
     uint32_t timeoutMilliSec = 10;   // 10ms
-    struct pm_state_info info;
-    // uint32_t timeoutMilliSec = (uint32_t)((uint64_t)1000 * xExpectedIdleTime / configTICK_RATE_HZ);
 
     while (true) {
         irqMask = DisableGlobalIRQ();
@@ -341,77 +305,19 @@ void app_task(void *p1, void *p2, void *p3)
     ServiceFlagAddr = ServiceBusy;
 
     /*
-     * Wait For A53 Side Become Ready
+     * Wait For A53 Side to Become Ready
      */
-    LOG_INF("Wait for Linux kernel to boot up and create the link between M core and A core");
+    LOG_INF("Wait for Linux kernel to boot up and create the link between M \
+            core and A core");
     while (srtmState != APP_SRTM_StateLinkedUp)
         ;
-    LOG_INF("The rpmsg channel created between M core and A core");
+    LOG_INF("RPMsg channel created between M core and A core");
 
     LOG_INF("Main thread is now running");
     while (true)
     {
-        go_to_sleep();
-        // k_sleep(K_FOREVER);
+        LPM_Sleep();
     }
-}
-
-void volume_down_btn_pressed(const struct device *dev, struct gpio_callback *cb,
-		    uint32_t pins)
-{
-	LOG_DBG("Volume down button pressed at %" PRIu32, k_cycle_get_32());
-
-}
-
-void volume_up_btn_pressed(const struct device *dev, struct gpio_callback *cb,
-		    uint32_t pins)
-{
-	LOG_DBG("Volume up button pressed at %" PRIu32, k_cycle_get_32());
-}
-
-void read_buttons_task(void *p1, void *p2, void *p3)
-{
-    int ret;
-
-    ARG_UNUSED(p1);
-    ARG_UNUSED(p2);
-    ARG_UNUSED(p3);
-
-    if (!device_is_ready(volume_down_btn.port)) {
-        __ASSERT(false, "Error - volume down button device is not ready");
-    }
-
-    if (!device_is_ready(volume_up_btn.port)) {
-        __ASSERT(false, "Error - volume up button device is not ready");
-    }
-
-    ret = gpio_pin_configure_dt(&volume_down_btn, GPIO_INPUT);
-    __ASSERT(ret == 0, "Error %d: failed to configure %s pin %d",
-             ret, volume_down_btn.port->name, volume_down_btn.pin);
-    ret = gpio_pin_configure_dt(&volume_up_btn, GPIO_INPUT);
-    __ASSERT(ret == 0, "Error %d: failed to configure %s pin %d",
-             ret, volume_up_btn.port->name, volume_up_btn.pin);
-
-    ret = gpio_pin_interrupt_configure_dt(&volume_down_btn,
-                                   GPIO_INT_EDGE_TO_ACTIVE);
-    __ASSERT(ret == 0, "Error %d: failed to configure interrupt on %s pin %d",
-             ret, volume_down_btn.port->name, volume_down_btn.pin);
-    ret = gpio_pin_interrupt_configure_dt(&volume_up_btn,
-                                   GPIO_INT_EDGE_TO_ACTIVE);
-    __ASSERT(ret == 0, "Error %d: failed to configure interrupt on %s pin %d",
-             ret, volume_up_btn.port->name, volume_up_btn.pin);
-    
-    gpio_init_callback(&volume_down_btn_cb_data, volume_down_btn_pressed,
-                       BIT(volume_down_btn.pin));
-    gpio_add_callback(volume_down_btn.port, &volume_down_btn_cb_data);
-	LOG_DBG("Set up volume down button at %s pin %d",
-           volume_down_btn.port->name, volume_down_btn.pin);
-    
-    gpio_init_callback(&volume_up_btn_cb_data, volume_up_btn_pressed,
-                       BIT(volume_up_btn.pin));
-    gpio_add_callback(volume_up_btn.port, &volume_up_btn_cb_data);
-	LOG_DBG("Set up volume up button at %s pin %d",
-           volume_up_btn.port->name, volume_up_btn.pin);
 }
 
 void main(void)
@@ -420,23 +326,29 @@ void main(void)
 
     BOARD_PeripheralRdcSetting();
 
-    BOARD_I2C_ReleaseBus();
-    BOARD_I2C_ConfigurePins();
-
-    CLOCK_SetRootMux(kCLOCK_RootSai3, kCLOCK_SaiRootmuxAudioPll1); /* Set SAI source to AUDIO PLL1 393216000HZ*/
-    CLOCK_SetRootDivider(kCLOCK_RootSai3, 1U, 32U);                /* Set root clock to 393216000HZ / 32 = 12.288MHz */
-    CLOCK_SetRootMux(kCLOCK_RootI2c3, kCLOCK_I2cRootmuxSysPll1Div5); /* Set I2C source to SysPLL1 Div5 160MHZ */
-    CLOCK_SetRootDivider(kCLOCK_RootI2c3, 1U, 10U);                  /* Set root clock to 160MHZ / 10 = 16MHZ */
-    CLOCK_SetRootMux(kCLOCK_RootGpt1, kCLOCK_GptRootmuxOsc24M);      /* Set GPT source to Osc24 MHZ */
+    /* Set SAI source to AUDIO PLL1 393216000HZ*/
+    CLOCK_SetRootMux(kCLOCK_RootSai3, kCLOCK_SaiRootmuxAudioPll1);
+    /* Set root clock to 393216000HZ / 32 = 12.288MHz */
+    CLOCK_SetRootDivider(kCLOCK_RootSai3, 1U, 32U);
+    /* Set I2C source to SysPLL1 Div5 160MHZ */
+    CLOCK_SetRootMux(kCLOCK_RootI2c3, kCLOCK_I2cRootmuxSysPll1Div5);
+    /* Set root clock to 160MHZ / 10 = 16MHZ */
+    CLOCK_SetRootDivider(kCLOCK_RootI2c3, 1U, 10U);
+    /* Set GPT source to Osc24 MHZ */
+    CLOCK_SetRootMux(kCLOCK_RootGpt1, kCLOCK_GptRootmuxOsc24M);
     CLOCK_SetRootDivider(kCLOCK_RootGpt1, 1U, 1U);
-    /* Enable the Audio clock on M7 side to make sure the AUDIOMIX domain clock on
-     * after A core enters suspend */
+    /* Enable the Audio clock on M7 side to make sure the AUDIOMIX domain clock
+     * on after A core enters suspend
+     */
     CLOCK_EnableClock(kCLOCK_Audio);
     /* SAI bit clock source */
     AUDIOMIX_AttachClk(AUDIOMIX, kAUDIOMIX_Attach_SAI3_MCLK1_To_SAI3_ROOT);
 
+    SAI_SetPinMux();
+
     /*
-     * In order to wakeup M7 from LPM, all PLLCTRLs need to be set to "NeededRun"
+     * In order to wakeup M7 from LPM, all PLLCTRLs need to be set to
+     * "NeededRun"
      */
     for (i = 0; i != 39; i++)
     {
@@ -453,7 +365,4 @@ void main(void)
     k_thread_create(&app_thread, app_stack, CONFIG_RPMSG_LITE_APP_STACKSIZE,
             app_task, NULL, NULL, NULL,
             -1, K_USER, K_MSEC(0));
-    // k_thread_create(&read_buttons_thread, read_buttons_stack, 1024,
-    //         read_buttons_task, NULL, NULL, NULL,
-    //         -1, K_USER, K_NO_WAIT);
 }

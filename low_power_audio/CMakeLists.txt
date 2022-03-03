@@ -66,4 +66,3 @@ include_directories(
 
 # Include other MCUX drivers/components
 include(${modules_dir}/hal/nxp/mcux/mcux-sdk/components/srtm/driver_srtm_MIMX8ML8.cmake)
-include(${modules_dir}/hal/nxp/mcux/mcux-sdk/drivers/ii2c/driver_ii2c.cmake)
