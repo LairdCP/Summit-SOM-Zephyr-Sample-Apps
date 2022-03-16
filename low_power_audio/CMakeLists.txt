@@ -17,6 +17,12 @@ set(MCUX_SDK_PROJECT_NAME app)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project("Low Power Audio Example")
 
+# Increase the SRTM I2C service buffer length (SRTM_I2C_BUF_LEN) to match the
+# size configured in Linux. This was necessary to work around limitations of the
+# RPMsg I2C driver in Linux that defaults to a buffer length of 16 bytes which
+# is too small for some I2C devices.
+add_compile_definitions(SRTM_I2C_BUF_LEN=128)
+
 target_sources(app PRIVATE
     ${rpmsg_lite_dir}/lib/common/llist.c
     ${rpmsg_lite_dir}/lib/rpmsg_lite/rpmsg_lite.c
