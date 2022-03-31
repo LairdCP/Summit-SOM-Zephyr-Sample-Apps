@@ -65,9 +65,6 @@ similar to the following:
 
         [00:00:00.000,000] <inf> main: LOW POWER WAKEUP EXAMPLE
         [00:00:00.000,000] <inf> main: Build Time: Mar 31 2022--09:48:03
-        [00:00:00.000,000] <inf> main: IPM initialized
-        [00:00:00.000,000] <inf> main: Setup volume up button
-        [00:00:00.000,000] <inf> main: Setup volume down button
         uart:~$
 
 #.  Login to Linux with the standard username and password.
@@ -91,6 +88,7 @@ similar to the following:
     .. code-block:: console
 
         uart:~$ wakeup
+        [00:01:25.446,000] <inf> main: Sending signal to wake up the A core
 
 #.  At the Linux prompt, put the A core back into the DSM state with the
     following command:
@@ -119,6 +117,7 @@ similar to the following:
     .. code-block:: console
 
         uart:~$ wakeup
+        [00:01:25.446,000] <inf> main: Sending signal to wake up the A core
 
 Flashing and Booting the M7 Core
 ********************************

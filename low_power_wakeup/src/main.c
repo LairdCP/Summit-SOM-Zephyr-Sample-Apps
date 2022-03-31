@@ -6,7 +6,7 @@
 
 #include "low_power_wakeup.h"
 
-LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 /* Globals */
 static const struct gpio_dt_spec volume_up_btn = GPIO_DT_SPEC_GET_OR(
