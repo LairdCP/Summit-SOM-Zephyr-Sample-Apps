@@ -32,9 +32,9 @@
  * Definitions
  ******************************************************************************/
 
-#define RDC_DISABLE_A53_ACCESS      0xFC
-#define RDC_A53_READ_ONLY_ACCESS    0xFE
-#define DOMAIN_ID                   (1U)
+#define RDC_DISABLE_A53_ACCESS		0xFC
+#define RDC_A53_READ_ONLY_ACCESS	0xFE
+#define DOMAIN_ID					(1U)
 
 /* Using SRC_GPR10 register to sync the tasks status with A core */
 #define ServiceFlagAddr SRC->GPR10
@@ -43,22 +43,22 @@
  * or not. If the task is runing, A core should not put DDR in self-refresh mode
  * after A core enters supsend.
  */
-#define ServiceBusy                 (0x5555U)
-#define ServiceIdle                 (0x0U)
+#define ServiceBusy					(0x5555U)
+#define ServiceIdle					(0x0U)
 
-#define DEBUG_UART_DEVICE           DT_NODELABEL(uart4)
-#define VOLUME_UP_BTN_NODE	        DT_ALIAS(volumeupbtn)
-#define VOLUME_DOWN_BTN_NODE	    DT_ALIAS(volumedownbtn)
-#define MU_CHANNEL                  1U
+#define DEBUG_UART_DEVICE			DT_NODELABEL(uart4)
+#define VOLUME_UP_BTN_NODE			DT_ALIAS(volumeupbtn)
+#define VOLUME_DOWN_BTN_NODE		DT_ALIAS(volumedownbtn)
+#define MU_CHANNEL					1U
 
 /* Types */
 
 /*! @brief Shell state definition for the low power wakeup example */
 typedef enum _shell_state
 {
-    LPW_SHELL_STATE_UNINITIALIZED   = 0U,   /* Shell is uninitialized */
-    LPW_SHELL_STATE_INITIALIZING    = 1U,   /* Shell is initializing */
-    LPW_SHELL_STATE_INITIALIZED     = 2U    /* Shell is initialized */
+	LPW_SHELL_STATE_UNINITIALIZED	= 0U,   /* Shell is uninitialized */
+	LPW_SHELL_STATE_INITIALIZING	= 1U,   /* Shell is initializing */
+	LPW_SHELL_STATE_INITIALIZED		= 2U    /* Shell is initialized */
 } lpw_shell_state_t;
 
 #endif // LOW_POWER_WAKEUP_H

@@ -77,10 +77,9 @@ similar to the following:
 
     .. code-block:: bash
 
-        echo mem > /sys/power/state
+        systemctl suspend
     
-    The Linux prompt will not reappear, and the board will enter into the DSM
-    state.
+    The board will enter into the DSM state.
 
 #. At the M7 core's shell prompt, type ``wakeup`` to trigger the A core to exit
    the DSM state. The A core will wake up, and the Linux prompt will reappear.
@@ -95,10 +94,9 @@ similar to the following:
 
     .. code-block:: bash
 
-        echo mem > /sys/power/state
+        systemctl suspend
     
-    The Linux prompt will not reappear, and the board will enter into the DSM
-    state.
+    The board will enter into the DSM state.
 
 #. At the M7 shell prompt, type ``sleep`` to trigger the M7 core to enter into a
    low power state.
