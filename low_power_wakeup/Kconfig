@@ -1,0 +1,19 @@
+#
+# Copyright (c) 2022 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menu "Low Power Wakeup Example"
+
+config IPC_DEV_NAME
+    string "IPC device name"
+    default "MU_B"
+
+endmenu
+
+module = MAIN
+module-str = MAIN
+source "subsys/logging/Kconfig.template.log_config"
+
+source "Kconfig.zephyr"

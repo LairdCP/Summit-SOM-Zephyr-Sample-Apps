@@ -41,8 +41,8 @@ simply by not booting the system past the U-Boot console.
 Flashing and Booting the M7 Core
 ********************************
 Below are the set of U-Boot commands to load and boot the M7 core. Currently,
-two run-modes are supported: ITCM and DDR. These steps assume the name of the
-binary to be ``zephyr.bin``.
+three run-modes are supported: ITCM, DDR, and QSPI. These steps assume the name
+of the binary to be ``zephyr.bin``.
 
 Flash and Boot M7 Core in ITCM Run-mode
 =======================================
@@ -59,3 +59,22 @@ Flash and Boot M7 Core in DDR Run-mode
     fatload mmc 1:1 0x80000000 zephyr.bin
     dcache flush
     bootaux 0x80000000
+
+Flash and Boot M7 Core in QSPI Run-mode
+=======================================
+To initially load the binary into the QSPI NOR flash:
+.. code-block:: console
+
+    fatload mmc 1:1 0x48000000 zephyr.bin
+    dcache flush
+    sf probe
+    sf erase 0 0x100000
+    sf write 0x48000000 0 0x100000
+
+To boot the M7 core from the QSPI NOR flash:
+.. code-block:: console
+
+    dcache flush
+    sf probe
+    sf read 0x48000000 0 0x100000
+    bootaux 0x8000000
