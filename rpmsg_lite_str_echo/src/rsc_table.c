@@ -28,47 +28,47 @@ __attribute__((section(".resource_table")))
 #endif
 
 const struct remote_resource_table resources = {
-    /* Version */
-    1,
+	/* Version */
+	1,
 
-    /* NUmber of table entries */
-    NO_RESOURCE_ENTRIES,
-    /* reserved fields */
-    {
-        0,
-        0,
-    },
+	/* NUmber of table entries */
+	NO_RESOURCE_ENTRIES,
+	/* reserved fields */
+	{
+		0,
+		0,
+	},
 
-    /* Offsets of rsc entries */
-    {
-        offsetof(struct remote_resource_table, user_vdev),
-    },
+	/* Offsets of rsc entries */
+	{
+		offsetof(struct remote_resource_table, user_vdev),
+	},
 
-    /* SRTM virtio device entry */
-    {
-        RSC_VDEV,
-        7,
-        0,
-        RSC_VDEV_FEATURE_NS,
-        0,
-        0,
-        0,
-        NUM_VRINGS,
-        {0, 0},
-    },
+	/* SRTM virtio device entry */
+	{
+		RSC_VDEV,
+		7,
+		0,
+		RSC_VDEV_FEATURE_NS,
+		0,
+		0,
+		0,
+		NUM_VRINGS,
+		{ 0, 0 },
+	},
 
-    /* Vring rsc entry - part of vdev rsc entry */
-    {VDEV0_VRING_BASE, VRING_ALIGN, RL_BUFFER_COUNT, 0, 0},
-    {VDEV0_VRING_BASE + VRING_SIZE, VRING_ALIGN, RL_BUFFER_COUNT, 1, 0},
+	/* Vring rsc entry - part of vdev rsc entry */
+	{ VDEV0_VRING_BASE, VRING_ALIGN, RL_BUFFER_COUNT, 0, 0 },
+	{ VDEV0_VRING_BASE + VRING_SIZE, VRING_ALIGN, RL_BUFFER_COUNT, 1, 0 },
 };
 
-void copyResourceTable(void)
+void copy_resource_table(void)
 {
-    /*
-     * Resource table should be copied to VDEV0_VRING_BASE + RESOURCE_TABLE_OFFSET.
-     * VDEV0_VRING_BASE is temperorily kept for backward compatibility, will be
-     * removed in future release
-     */
-    memcpy((void *)VDEV0_VRING_BASE, &resources, sizeof(resources));
-    memcpy((void *)(VDEV0_VRING_BASE + RESOURCE_TABLE_OFFSET), &resources, sizeof(resources));
+	/*
+	* Resource table should be copied to VDEV0_VRING_BASE + RESOURCE_TABLE_OFFSET.
+	* VDEV0_VRING_BASE is temperorily kept for backward compatibility, will be removed in future
+	* release
+	*/
+	memcpy((void *)VDEV0_VRING_BASE, &resources, sizeof(resources));
+	memcpy((void *)(VDEV0_VRING_BASE + RESOURCE_TABLE_OFFSET), &resources, sizeof(resources));
 }

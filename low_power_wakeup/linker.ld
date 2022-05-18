@@ -15,7 +15,6 @@ MEMORY
 #else
 	DDR  (wx) : ORIGIN = 0x80000000, LENGTH = 0x01000000
 #endif
-	m_data2 (RW)  : ORIGIN = 0x00920000, LENGTH = 0x00020000
 }
 
 #include <arch/arm/aarch32/cortex_m/scripts/linker.ld>
@@ -36,9 +35,4 @@ SECTIONS
 	{
 		*(NonCacheable)
 	} GROUP_LINK_IN(RAMABLE_REGION)
-
-	SECTION_PROLOGUE(.audiobuf,, SUBALIGN(4))
-	{
-		*(AudioBuf)
-	} GROUP_LINK_IN(m_data2)
 }

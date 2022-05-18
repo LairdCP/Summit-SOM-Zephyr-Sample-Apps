@@ -23,24 +23,23 @@ extern "C" {
 
 /* Resource table for the given remote */
 METAL_PACKED_BEGIN
-struct remote_resource_table
-{
-    uint32_t version;
-    uint32_t num;
-    uint32_t reserved[2];
-    uint32_t offset[NO_RESOURCE_ENTRIES];
+struct remote_resource_table {
+	uint32_t version;
+	uint32_t num;
+	uint32_t reserved[2];
+	uint32_t offset[NO_RESOURCE_ENTRIES];
 
-    /* rpmsg vdev entry for user app communication */
-    struct fw_rsc_vdev user_vdev;
-    struct fw_rsc_vdev_vring user_vring0;
-    struct fw_rsc_vdev_vring user_vring1;
+	/* rpmsg vdev entry for user app communication */
+	struct fw_rsc_vdev user_vdev;
+	struct fw_rsc_vdev_vring user_vring0;
+	struct fw_rsc_vdev_vring user_vring1;
 } METAL_PACKED_END;
 
 /*
  * Copy resource table to shared memory base for early M4 boot case.
  * In M4 early boot case, Linux kernel need to get resource table before file system gets loaded.
  */
-void copyResourceTable(void);
+void copy_resource_table(void);
 
 #if defined __cplusplus
 }

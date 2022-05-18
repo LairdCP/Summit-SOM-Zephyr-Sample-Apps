@@ -17,15 +17,14 @@
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
-typedef enum
-{
-    APP_SRTM_StateRun = 0x0U,
-    APP_SRTM_StateLinkedUp,
+typedef enum {
+	APP_SRTM_STATE_RUN = 0x0U,
+	APP_SRTM_STATE_LINKED_UP,
 } app_srtm_state_t;
 
-#define APP_SRTM_SAI      (I2S3)
+#define APP_SRTM_SAI (I2S3)
 #define APP_SRTM_SAI_IRQn I2S3_IRQn
-#define APP_SRTM_DMA      SDMAARM3
+#define APP_SRTM_DMA SDMAARM3
 #define APP_SRTM_DMA_IRQn SDMA3_IRQn
 
 /* The MCLK of the SAI is 12288000Hz by default which can be changed when playback the music. */
@@ -36,35 +35,38 @@ typedef enum
 /* IRQ handler priority definition, bigger number stands for lower priority */
 #define APP_SAI_TX_DMA_IRQ_PRIO (5U)
 #define APP_SAI_RX_DMA_IRQ_PRIO (5U)
-#define APP_SAI_IRQ_PRIO        (5U)
+#define APP_SAI_IRQ_PRIO (5U)
 /* Task priority definition, bigger number stands for higher priority */
-#define APP_SRTM_MONITOR_TASK_PRIO    -4
+#define APP_SRTM_MONITOR_TASK_PRIO -4
 #define APP_SRTM_DISPATCHER_TASK_PRIO -3
 /* SAI SDMA channel */
-#define APP_SAI_TX_DMA_CHANNEL          (1U)
-#define APP_SAI_RX_DMA_CHANNEL          (2U)
-#define APP_SAI_RX_DMA_SOURCE           (4U)
-#define APP_SAI_TX_DMA_SOURCE           (5U)
+#define APP_SAI_TX_DMA_CHANNEL (1U)
+#define APP_SAI_RX_DMA_CHANNEL (2U)
+#define APP_SAI_RX_DMA_SOURCE (4U)
+#define APP_SAI_TX_DMA_SOURCE (5U)
 #define APP_SAI_TX_DMA_CHANNEL_PRIORITY (2U)
 #define APP_SAI_RX_DMA_CHANNEL_PRIORITY (2U)
 
 #define APP_I2C_SWITCH_NONE (1U) /* MAX SWITCH in this board is 1 */
 #define APP_I2C_SWITCH_ADDR (0x71)
-#define APP_I2C_BAUDRATE    (400000U)
+#define APP_I2C_BAUDRATE (400000U)
 
 /* SAI and SDMA clock gate bit field in the AUDIOMIX */
-#define APP_SAI_GATE  (3 << 8U)  /* SAI3 and SAI3_MCLK1 Must be both enabled in the AUDIOMIX */
-#define APP_SDMA_GATE (1 << 27U) /* SDMA3 gate bit in the AUDIOMIX*/
+/* SAI3 and SAI3_MCLK1 Must be both enabled in the AUDIOMIX */
+#define APP_SAI_GATE (3 << 8U)
+/* SDMA3 gate bit in the AUDIOMIX*/
+#define APP_SDMA_GATE (1 << 27U)
 /* Define the timeout ms to polling the CA7 link up status */
 #define APP_LINKUP_TIMER_PERIOD_MS (10U)
 
 #define RPMSG_LITE_SRTM_SHMEM_BASE (VDEV0_VRING_BASE)
-#define RPMSG_LITE_SRTM_LINK_ID    (0U)
+#define RPMSG_LITE_SRTM_LINK_ID (0U)
 
 #define APP_SRTM_AUDIO_CHANNEL_NAME "rpmsg-audio-channel"
-#define APP_SRTM_I2C_CHANNEL_NAME   "rpmsg-i2c-channel"
+#define APP_SRTM_I2C_CHANNEL_NAME "rpmsg-i2c-channel"
 
-typedef void (*app_rpmsg_monitor_t)(struct rpmsg_lite_instance *rpmsgHandle, bool ready, void *param);
+typedef void (*app_rpmsg_monitor_t)(struct rpmsg_lite_instance *rpmsg_handle, bool ready,
+				    void *param);
 typedef void (*app_irq_handler_t)(IRQn_Type irq, void *param);
 
 /*******************************************************************************
@@ -76,22 +78,22 @@ extern "C" {
 #endif
 
 /* Initialize SRTM contexts */
-void APP_SRTM_Init(void);
+void app_srtm_init(void);
 
 /* Deinit SRTM service in suspend */
-void APP_SRTM_Suspend(void);
+void app_srtm_suspend(void);
 
 /* Restore SRTM service in resume */
-void APP_SRTM_Resume(void);
+void app_srtm_resume(void);
 
 /* Set RPMsg channel init/deinit monitor */
-void APP_SRTM_SetRpmsgMonitor(app_rpmsg_monitor_t monitor, void *param);
+void app_srtm_set_rpmsg_monitor(app_rpmsg_monitor_t monitor, void *param);
 
 /* Set SNVS IRQ handler for application */
-void APP_SRTM_SetIRQHandler(app_irq_handler_t handler, void *param);
+void app_srtm_set_irq_handler(app_irq_handler_t handler, void *param);
 
 /* Check the SRTM services busy or idle.*/
-bool APP_SRTM_ServiceIdle(void);
+bool app_srtm_service_idle(void);
 #if defined(__cplusplus)
 }
 #endif

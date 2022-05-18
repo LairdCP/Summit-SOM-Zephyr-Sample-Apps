@@ -5,117 +5,93 @@
  */
 
 #include "low_power_wakeup.h"
+#include <device.h>
+#include <pm/pm.h>
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
+/* Definitions */
+#define PM_MIN_TICKS 2
+#define MAX_NUM_PLLS 39
+
 /* Globals */
-static const struct gpio_dt_spec volume_up_btn = GPIO_DT_SPEC_GET_OR(
-								  VOLUME_UP_BTN_NODE,
-								  gpios,
-								  {0});
-static const struct gpio_dt_spec volume_down_btn = GPIO_DT_SPEC_GET_OR(
-								  VOLUME_DOWN_BTN_NODE,
-								  gpios,
-								  {0});
 static const struct device *ipm_handle;
-
-static bool vol_down_btn_pushed			= false;
-static bool vol_down_btn_pushed_prev	= false;
-static bool vol_up_btn_pushed			= false;
-static bool vol_up_btn_pushed_pre		= false;
-
-volatile lpw_shell_state_t shell_state	= LPW_SHELL_STATE_UNINITIALIZED;
+volatile bool wakeup_a_core_shell_flag = false;
 
 /* Code */
 
 /**
  * @brief Perform peripheral access configuration via the RDC.
+ *
  */
 void rdc_configure_peripheral_access(void)
 {
-	rdc_domain_assignment_t assignment = {0};
-	rdc_periph_access_config_t periphConfig;
+	rdc_domain_assignment_t assignment = { 0 };
+	rdc_periph_access_config_t periph_config;
 
-	assignment.domainId = DOMAIN_ID;
+	assignment.domainId = M7_DOMAIN_ID;
 
 	/* Only configure the RDC if the RDC peripheral write access is allowed. */
-	if ((0x1U & RDC_GetPeriphAccessPolicy(RDC, kRDC_Periph_RDC,
-										  assignment.domainId)) != 0U)
-	{
-		RDC_GetDefaultPeriphAccessConfig(&periphConfig);
-		/*
-		 * Do not allow the A53 domain (domain0) to access the following
-		 * peripherals.
-		 */
-		periphConfig.policy = RDC_DISABLE_A53_ACCESS;
-		periphConfig.periph = kRDC_Periph_UART4;
-		RDC_SetPeriphAccessConfig(RDC, &periphConfig);
-		periphConfig.periph = kRDC_Periph_GPT1;
-		RDC_SetPeriphAccessConfig(RDC, &periphConfig);
+	if ((0x1U & RDC_GetPeriphAccessPolicy(RDC, kRDC_Periph_RDC, assignment.domainId)) != 0U) {
+		RDC_GetDefaultPeriphAccessConfig(&periph_config);
 
-		/*
-		 * Allow read only access to the A53 domain (domain0) for the GPIO3
-		 * periperal.
-		 */
-		periphConfig.periph = kRDC_Periph_GPIO3;
-		periphConfig.policy = RDC_A53_READ_ONLY_ACCESS;
-		RDC_SetPeriphAccessConfig(RDC, &periphConfig);
+		/* Give the A53 domain (domain0) access to the I2C3 and SAI3 peripherals. */
+		periph_config.policy = RDC_ACCESS_POLICY(A53_DOMAIN_ID, kRDC_ReadWrite);
+		periph_config.periph = kRDC_Periph_I2C3;
+		RDC_SetPeriphAccessConfig(RDC, &periph_config);
+		periph_config.periph = kRDC_Periph_SAI3;
+		RDC_SetPeriphAccessConfig(RDC, &periph_config);
 	}
 }
 
 /**
- * @brief Perform pre-sleep processing tasks.
+ * @brief Set the target power mode for the M7 core
+ *
+ * @param target_power_mode	Desired power mode for the M7 core
+ */
+void lpm_set_power_status(lpm_power_status_m7_t target_power_mode)
+{
+	gpc_lpm_config_t config;
+	config.enCpuClk = false;
+	config.enFastWakeUp = false;
+	config.enDsmMask = false;
+	config.enWfiMask = false;
+	config.enVirtualPGCPowerdown = true;
+	config.enVirtualPGCPowerup = true;
+	switch (target_power_mode) {
+	case LPM_M7_STATE_RUN:
+		GPC->LPCR_M7 = GPC->LPCR_M7 & (~GPC_LPCR_M7_LPM0_MASK);
+		break;
+	case LPM_M7_STATE_WAIT:
+		GPC_EnterWaitMode(GPC, &config);
+		break;
+	case LPM_M7_STATE_STOP:
+		GPC_EnterStopMode(GPC, &config);
+		break;
+	default:
+		break;
+	}
+}
+
+/**
+ * @brief Logic run before entering the LPM stop mode
+ *
  */
 void pre_sleep_processing(void)
 {
-	UART_Deinit((UART_Type *)DT_REG_ADDR(DEBUG_UART_DEVICE));
 }
 
 /**
- * @brief Perform post-sleep processing tasks.
+ * @brief Logic run after exiting the LPM stop mode
+ *
  */
 void post_sleep_processing(void)
 {
-	uart_config_t uart_config;
-	uint32_t clock_freq;
-	const struct device *clock_dev;
-	clock_control_subsys_t clock_subsys;
-
-	/* Re-initialize the UART */
-	clock_dev = DEVICE_DT_GET(DT_CLOCKS_CTLR(DEBUG_UART_DEVICE));
-	clock_subsys = (clock_control_subsys_t)DT_CLOCKS_CELL(DEBUG_UART_DEVICE,
-														  name);
-	if (clock_control_get_rate(clock_dev, clock_subsys, &clock_freq) != 0) {
-		clock_freq = 0;
-	}
-
-	UART_GetDefaultConfig(&uart_config);
-	uart_config.enableTx = true;
-	uart_config.enableRx = true;
-	uart_config.baudRate_Bps = DT_PROP(DEBUG_UART_DEVICE, current_speed);
-
-	UART_Init((UART_Type *)DT_REG_ADDR(DEBUG_UART_DEVICE), &uart_config,
-			  clock_freq);
-}
-
-/**
- * @brief IPM (MU) interrupt handler.
- * 
- * @param dev       Pointer to device struct
- * @param context   Pointer to context
- * @param id        ID
- * @param data      Pointer to data
- */
-void MU1_M7_IRQHandler(const struct device *dev, void *context,
-				  uint32_t id, volatile void *data)
-{
-	uint32_t *data32 = (uint32_t *)data;
-
-	LOG_DBG("Received MU msg: %d", *data32);
 }
 
 /**
  * @brief Send a signal via the MU peripheral to wake up the A core.
+ *
  */
 void wakeup_a_core()
 {
@@ -130,71 +106,13 @@ void wakeup_a_core()
 }
 
 /**
- * @brief Initialize the shell from within a k_work worker.
- * 
- * @param work  Pointer to k_work struct
- */
-void shell_init_from_work(struct k_work *work)
-{
-	if (shell_state == LPW_SHELL_STATE_UNINITIALIZED) {
-		shell_state = LPW_SHELL_STATE_INITIALIZING;
-
-		post_sleep_processing();
-
-		const struct device *dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_shell_uart));
-		bool log_backend = CONFIG_SHELL_BACKEND_SERIAL_LOG_LEVEL > 0;
-		uint32_t level =
-			(CONFIG_SHELL_BACKEND_SERIAL_LOG_LEVEL > LOG_LEVEL_DBG) ?
-			CONFIG_LOG_MAX_LEVEL : CONFIG_SHELL_BACKEND_SERIAL_LOG_LEVEL;
-
-		shell_init(shell_backend_uart_get_ptr(), dev,
-			shell_backend_uart_get_ptr()->ctx->cfg.flags,
-			log_backend, level);
-
-		shell_state = LPW_SHELL_STATE_INITIALIZED;
-	}
-}
-
-/**
- * @brief Trigger a reinitialization of the shell via a k_work worker.
- */
-static void shell_reinit_trigger(void)
-{
-	static struct k_work shell_init_work;
-
-	k_work_init(&shell_init_work, shell_init_from_work);
-	int err = k_work_submit(&shell_init_work);
-
-	(void)err;
-	__ASSERT_NO_MSG(err >= 0);
-}
-
-/**
- * @brief Callback handler after the shell has been uninitialized.
- * 
- * @param shell Pointer to shell struct
- * @param res   Result from the shell uninitialization
- */
-static void shell_uninit_cb(const struct shell *shell, int res)
-{
-	ARG_UNUSED(shell);
-
-	__ASSERT_NO_MSG(res >= 0);
-
-	pre_sleep_processing();
-
-	/* Flag that the shell is no longer initialized */
-	shell_state = LPW_SHELL_STATE_UNINITIALIZED;
-}
-
-/**
  * @brief Shell 'demo' command that prints the current board configuration.
- * 
- * @param shell Pointer to shell struct
- * @param argc  Number of arguments received
- * @param argv  Pointer to string array of arguments received
- * 
- * @return      0 for success, otherwise a numerical error code
+ *
+ * @param shell	Pointer to shell struct
+ * @param argc	Number of arguments received
+ * @param argv	Pointer to string array of arguments received
+ *
+ * @return	0 for success, otherwise a numerical error code
  */
 static int cmd_demo_board(const struct shell *shell, size_t argc, char **argv)
 {
@@ -208,12 +126,12 @@ static int cmd_demo_board(const struct shell *shell, size_t argc, char **argv)
 
 /**
  * @brief Shell 'version' command that prints the Zephyr kernel version.
- * 
- * @param shell Pointer to shell struct
- * @param argc  Number of arguments received
- * @param argv  Pointer to string array of arguments received
- * 
- * @return      0 for success, otherwise a numerical error code
+ *
+ * @param shell	Pointer to shell struct
+ * @param argc	Number of arguments received
+ * @param argv	Pointer to string array of arguments received
+ *
+ * @return	0 for success, otherwise a numerical error code
  */
 static int cmd_version(const struct shell *shell, size_t argc, char **argv)
 {
@@ -227,192 +145,204 @@ static int cmd_version(const struct shell *shell, size_t argc, char **argv)
 
 /**
  * @brief Shell 'wakeup' command that triggers a signal to wake up the A core.
+ *
+ * @param shell	Pointer to shell struct
+ * @param argc	Number of arguments received
+ * @param argv	Pointer to string array of arguments received
+ * @param data	Pointer to received data
  * 
- * @param shell Pointer to shell struct
- * @param argc  Number of arguments received
- * @param argv  Pointer to string array of arguments received
- * @param data  Pointer to received data
- * 
- * @return      0 for success, otherwise a numerical error code
+ * @return	0 for success, otherwise a numerical error code
  */
-static int cmd_wakeup_a_core(const struct shell *shell, size_t argc,
-			char **argv, void *data)
+static int cmd_wakeup_a_core(const struct shell *shell, size_t argc, char **argv, void *data)
 {
 	ARG_UNUSED(shell);
 	ARG_UNUSED(argc);
 	ARG_UNUSED(argv);
 	ARG_UNUSED(data);
 
-	wakeup_a_core();
+	lpm_increase_block_sleep_count();
+
+	wakeup_a_core_shell_flag = true;
+
+	lpm_decrease_block_sleep_count();
 
 	return 0;
 }
 
-/**
- * @brief Shell 'sleep' command that uninitializes the shell UART peripheral and
- * enters the M7 core into a low power state.
- * 
- * @param shell Pointer to shell struct
- * @param argc  Number of arguments received
- * @param argv  Pointer to string array of arguments received
- * @param data  Pointer to received data
- * 
- * @return      0 for success, otherwise a numerical error code
- */
-static int cmd_sleep(const struct shell *shell, size_t argc,
-			char **argv, void *data)
-{
-	ARG_UNUSED(argc);
-	ARG_UNUSED(argv);
-	ARG_UNUSED(data);
-
-	if (shell != shell_backend_uart_get_ptr()) {
-		shell_error(shell, "Command dedicated for shell over uart");
-		return -EINVAL;
-	}
-
-	shell_print(shell,
-		"Uninitializing shell, use volume buttons to reinitialize");
-	shell_uninit(shell, shell_uninit_cb);
-	return 0;
-}
-
+/* Configure available shell commands */
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_demo,
-	SHELL_CMD(board, NULL, "Show board name command.", cmd_demo_board),
-	SHELL_SUBCMD_SET_END /* Array terminated. */
+			       SHELL_CMD(board, NULL, "Show board name command.", cmd_demo_board),
+			       SHELL_SUBCMD_SET_END /* Array terminated. */
 );
+
 SHELL_CMD_REGISTER(demo, &sub_demo, "Demo commands", NULL);
 
 SHELL_CMD_ARG_REGISTER(version, NULL, "Show kernel version", cmd_version, 1, 0);
 
-SHELL_CMD_ARG_REGISTER(wakeup, NULL,
-	"Wakeup the A core", cmd_wakeup_a_core, 1, 0);
-
-SHELL_CMD_ARG_REGISTER(sleep, NULL,
-	"Put M core into low power sleep mode - exit with either volume button",
-	cmd_sleep, 1, 0);
+SHELL_CMD_ARG_REGISTER(wakeup, NULL, "Wakeup the A core", cmd_wakeup_a_core, 1, 0);
 
 /**
- * @brief Volume up button polling timer timeout function which handles checking
- * the volume up button state and triggering the shell re-initialization, if the
- * button is pushed.
- * 
- * @param timer Pointer to timer struct
+ * @brief Polling timer timeout function which handles checking the state of the
+ * wakeup_a_core_shell_flag, and then waking up the A core, if necessary.
+ *
+ * @param timer	Pointer to timer struct
  */
-static void vol_up_btn_poll_timeout(struct k_timer *timer)
+static void polling_timeout(struct k_timer *timer)
 {
+	bool issue_wakeup = false;
+
 	ARG_UNUSED(timer);
 
-	/* Check if volume up button was pushed */
-	vol_up_btn_pushed = gpio_pin_get_dt(&volume_up_btn) == 1;
-	if (vol_up_btn_pushed != vol_up_btn_pushed_prev && vol_up_btn_pushed) {
-		LOG_DBG("Detected volume up button push");
-		if (shell_state == LPW_SHELL_STATE_UNINITIALIZED) {
-			shell_reinit_trigger();
-		}
+	if (wakeup_a_core_shell_flag) {
+		wakeup_a_core_shell_flag = false;
+		issue_wakeup |= true;
 	}
-	vol_up_btn_pushed_prev = vol_up_btn_pushed;
+
+	if (issue_wakeup) {
+		wakeup_a_core();
+	}
+}
+
+/* Define polling timer */
+K_TIMER_DEFINE(polling_timer, polling_timeout, NULL);
+
+/**
+ * @brief Application-specific override of the Power Management set state function
+ *
+ * @param info	Info on the requested next state
+ */
+void pm_power_state_set(struct pm_state_info info)
+{
+	/* Extract target GPC mode from the substate ID */
+	uint32_t target_mode = (uint32_t)info.substate_id;
+	/* Read current GPC mode */
+	uint32_t current_mode = GPC_GetLpmMode(GPC);
+
+	irq_unlock(0);
+
+	if (target_mode == current_mode) {
+		__DSB();
+		__ISB();
+		__WFI();
+		return;
+	}
+
+	switch (target_mode) {
+	case kGPC_RunMode:
+		lpm_set_power_status(LPM_M7_STATE_RUN);
+		break;
+	case kGPC_WaitMode:
+		lpm_set_power_status(LPM_M7_STATE_WAIT);
+		pre_sleep_processing();
+		ServiceFlagAddr = ServiceIdle;
+
+		__DSB();
+		__ISB();
+		__WFI();
+
+		ServiceFlagAddr = ServiceBusy;
+		post_sleep_processing();
+		lpm_set_power_status(LPM_M7_STATE_RUN);
+		break;
+	case kGPC_StopMode:
+		lpm_set_power_status(LPM_M7_STATE_STOP);
+		pre_sleep_processing();
+		ServiceFlagAddr = ServiceIdle;
+
+		__DSB();
+		__ISB();
+		__WFI();
+
+		ServiceFlagAddr = ServiceBusy;
+		post_sleep_processing();
+		lpm_set_power_status(LPM_M7_STATE_RUN);
+		break;
+	default:
+		LOG_ERR("Unknown power state requested");
+		return;
+	}
 }
 
 /**
- * @brief Volume down button polling timer timeout function which handles
- * checking the volume down button state and triggering the shell
- * re-initialization, if the button is pushed.
- * 
- * @param timer Pointer to timer struct
+ * @brief Application-specific override of the Power Management power state exit handler function
+ *
+ * @param info	Info on the state that is currently being exited
  */
-static void vol_down_btn_poll_timeout(struct k_timer *timer)
+void pm_power_state_exit_post_ops(struct pm_state_info info)
 {
-	ARG_UNUSED(timer);
-
-	/* Check if volume down button was pushed */
-	vol_down_btn_pushed = gpio_pin_get_dt(&volume_down_btn) == 1;
-	if (vol_down_btn_pushed != vol_down_btn_pushed_prev &&
-		vol_down_btn_pushed) {
-		LOG_DBG("Detected volume down button push");
-		if (shell_state == LPW_SHELL_STATE_UNINITIALIZED) {
-			shell_reinit_trigger();
-		}
-	}
-	vol_down_btn_pushed_prev = vol_down_btn_pushed;
+	ARG_UNUSED(info);
 }
 
-K_TIMER_DEFINE(vol_up_btn_poll_timer, vol_up_btn_poll_timeout, NULL);
-K_TIMER_DEFINE(vol_down_btn_poll_timer, vol_down_btn_poll_timeout, NULL);
+/**
+ * @brief Application-specific Power Management state management policy
+ *
+ * @param ticks			The number of remaining ticks before the system wakes
+ * @return struct pm_state_info	Next power state
+ */
+struct pm_state_info pm_policy_next_state(int32_t ticks)
+{
+	/*
+	 * If the available PM_MIN_TICKS is less than 2 or sleep isn't allowed, then just stay in
+	 * the 'active' state. Otherwise, move to the 'wait' state.
+	 */
+	if (ticks >= PM_MIN_TICKS && lpm_allow_sleep()) {
+		return (struct pm_state_info){ PM_STATE_SUSPEND_TO_IDLE, kGPC_WaitMode, 0 };
+	} else {
+		return (struct pm_state_info){ PM_STATE_ACTIVE, kGPC_RunMode, 0 };
+	}
+}
 
 /**
  * @brief Main function entry point
- * 
+ *
  */
 void main(void)
 {
 	uint32_t i = 0;
-	int ret;
+
+	/* Block LPM wait mode until initial setup is complete */
+	lpm_increase_block_sleep_count();
 
 	/* Use RDC to configure peripheral access */
 	rdc_configure_peripheral_access();
 
 	/*
-	 * Set the ServiceFlag to ServiceBusy so that the A core does not attempt to
-	 * stop the M7 core when it enters into the DSM state.
+	 * In order to wakeup M7 from LPM, all PLLCTRLs need to be set to
+	 * "NeededRun"
+	 */
+	for (i = 0; i != MAX_NUM_PLLS; i++) {
+		CCM->PLL_CTRL[i].PLL_CTRL = kCLOCK_ClockNeededRun;
+	}
+
+	/*
+	 * Set the ServiceFlag to ServiceBusy so that the A core does not attempt to stop the M7
+	 * core when it enters into the DSM state.
 	 */
 	ServiceFlagAddr = ServiceBusy;
 
 	LOG_INF("LOW POWER WAKEUP EXAMPLE");
-	LOG_INF("Build Time: %s--%s", __DATE__, __TIME__);
 
 	/* Setup the IPM (MU) peripheral */
-	ipm_handle = device_get_binding(CONFIG_IPC_DEV_NAME);
+	ipm_handle = device_get_binding(CONFIG_RPMSG_LITE_IPC_DEV_NAME);
 	if (!ipm_handle) {
 		LOG_ERR("Failed to find ipm device");
 		return;
 	}
-	if (!device_is_ready(ipm_handle)) {
-		while (1) {
-			LOG_ERR("MU is not ready");
-		}
+	while (!device_is_ready(ipm_handle)) {
+		LOG_ERR("MU is not ready");
+		k_sleep(K_SECONDS(1));
 	}
 
-	ipm_register_callback(ipm_handle, MU1_M7_IRQHandler, NULL);
-
-	ipm_set_enabled(ipm_handle, 1);
-	LOG_DBG("IPM initialized");
-
-	/* Setup volume up button */
-	if (!device_is_ready(volume_up_btn.port)) {
-		LOG_ERR("Error: button device %s is not ready",
-			   volume_up_btn.port->name);
-		return;
-	}
-	ret = gpio_pin_configure_dt(&volume_up_btn, GPIO_INPUT);
-	if (ret != 0) {
-		LOG_ERR("Error %d: failed to configure %s pin %d",
-			   ret, volume_up_btn.port->name, volume_up_btn.pin);
-		return;
-	}
-	LOG_DBG("Setup volume up button");
-
-	/* Setup volume down button */
-	if (!device_is_ready(volume_down_btn.port)) {
-		LOG_ERR("Error: button device %s is not ready",
-			   volume_down_btn.port->name);
-		return;
-	}
-	ret = gpio_pin_configure_dt(&volume_down_btn, GPIO_INPUT);
-	if (ret != 0) {
-		LOG_ERR("Error %d: failed to configure %s pin %d",
-			   ret, volume_down_btn.port->name, volume_down_btn.pin);
-		return;
-	}
-	LOG_DBG("Setup volume down button");
-
-	/* Mark the shell as initialized */
-	shell_state = LPW_SHELL_STATE_INITIALIZED;
+	/* Clear the terminal */
+	shell_execute_cmd(shell_backend_uart_get_ptr(), "clear");
 
 	/*
-	 * Start button poll timers. Polling is necessary here because GPIO
-	 * interrupts are disabled when the A core is put into the DSM state.
+	 * Start polling timer.
 	 */
-	k_timer_start(&vol_up_btn_poll_timer, K_MSEC(100), K_MSEC(100));
-	k_timer_start(&vol_down_btn_poll_timer, K_MSEC(100), K_MSEC(100));
+	k_timer_start(&polling_timer, K_MSEC(POLLING_TIMER_PERIOD_MS),
+		      K_MSEC(POLLING_TIMER_PERIOD_MS));
+
+	/* Unblock LPM wait mode and sleep the main thread */
+	lpm_decrease_block_sleep_count();
+	k_sleep(K_FOREVER);
 }

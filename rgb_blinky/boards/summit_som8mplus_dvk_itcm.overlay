@@ -5,5 +5,24 @@
  */
 
 &i2c3 {
-	status ="okay";
+	status = "okay";
+	clock-rootmux = <0>;
+	clock-root-pre-divider = <1>;
+	clock-root-post-divider = <1>;
+};
+
+&pca6416 {
+	status = "okay";
+};
+
+&gpt2 {
+	status = "okay";
+};
+
+&uart4 {
+	clock-rootmux = <0>;
+};
+
+&gpio3 {
+	status = "okay";
 };

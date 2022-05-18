@@ -16,9 +16,11 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project("Low Power Wakeup Example")
 
 target_sources(app PRIVATE
-    ${CMAKE_SOURCE_DIR}/src/main.c
+	${CMAKE_SOURCE_DIR}/src/main.c
+	${CMAKE_SOURCE_DIR}/src/empty_rsc_table.c
+	${CMAKE_SOURCE_DIR}/src/lpm.c
 )
 
 include_directories(
-    ${CMAKE_SOURCE_DIR}/include
+	${CMAKE_SOURCE_DIR}/include
 )

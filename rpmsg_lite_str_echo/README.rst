@@ -64,16 +64,24 @@ following information:
 
 .. code-block:: console
 
-    RPMSG String Echo Zerphyr RTOS API Demo...
+    *** Booting Zephyr OS build zephyr-v2.7.1-131-g0bbf54bae420  ***
+    [00:00:00.005,523] <inf> main: RPMSG String Echo Zephyr RTOS API Demo
+    [00:00:01.817,321] <inf> main: Nameservice sent, ready for incoming messages...
 
-    Nameservice sent, ready for incoming messages...
+Ensure the RPMsg tty module has been loaded by issuing the following command on
+the Cortex-A terminal:
 
-After the Linux RPMsg tty module was installed, the ARM Cortex-M7 terminal
+.. code-block:: bash
+
+    modprobe imx_rpmsg_tty
+
+After the Linux RPMsg tty module is installed, the ARM Cortex-M7 terminal
 displays the following information:
 
 .. code-block:: console
 
-    Get Messgae From Master Side : "hello world!" [len : 12]
+    [00:00:12.106,231] <inf> main: Get Message From Master Side : "hello world!" [len : 12]
+
 
 The user can then input an arbitrary string to the virtual RPMsg tty using the
 following echo command on Cortex-A terminal:
@@ -87,8 +95,8 @@ shown in the log.
 
 .. code-block:: console
 
-    Get Message From Master Side : "test" [len : 4]
-    Get New Line From Master side
+    [00:00:55.244,995] <inf> main: Get Message From Master Side : "test" [len : 4]
+    [00:00:55.245,117] <inf> main: Get New Line From Master Side
 
 Flashing and Booting the M7 Core
 ********************************

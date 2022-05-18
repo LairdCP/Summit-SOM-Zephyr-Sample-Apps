@@ -9,18 +9,6 @@
 #ifndef _LPM_H_
 #define _LPM_H_
 
-#include "fsl_common.h"
-
-/*******************************************************************************
- * Definitions
- ******************************************************************************/
-#define SYSTICK_BASE GPT1
-#define SYSTICK_IRQn GPT1_IRQn
-#define SYSTICK_HANDLER GPT1_IRQHandler
-#define SYSTICK_CLOCK                                                                              \
-	24000000 / (CLOCK_GetRootPreDivider(kCLOCK_RootGpt1)) /                                    \
-		(CLOCK_GetRootPostDivider(kCLOCK_RootGpt1))
-
 /*******************************************************************************
  * API
  ******************************************************************************/

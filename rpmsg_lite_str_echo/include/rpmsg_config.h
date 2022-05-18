@@ -79,11 +79,10 @@
 #define RL_DEBUG_CHECK_BUFFERS (0)
 //@}
 
-typedef struct
-{
-    uint32_t src;
-    void *data;
-    uint32_t len;
+typedef struct {
+	uint32_t src;
+	void *data;
+	uint32_t len;
 } rpmsg_queue_rx_cb_data_t;
 
 #endif /* RPMSG_CONFIG_H_ */

@@ -31,10 +31,10 @@ static uint32_t count;
  ******************************************************************************/
 void *SRTM_Heap_Malloc(uint32_t size)
 {
-    return k_malloc(size);
+	return k_malloc(size);
 }
 
 void SRTM_Heap_Free(void *buf)
 {
-    k_free(buf);
+	k_free(buf);
 }

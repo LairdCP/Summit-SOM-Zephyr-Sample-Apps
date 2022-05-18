@@ -8,33 +8,29 @@
 #define LOW_POWER_WAKEUP_H
 
 #include <zephyr.h>
-#include <drivers/gpio.h>
-#include <drivers/clock_control.h>
 #include <sys/printk.h>
-#include <stdint.h>
-#include <string.h>
 #include <logging/log.h>
 
-#include "fsl_rdc.h"
-#include "fsl_gpio.h"
-#include "fsl_uart.h"
 #include <drivers/ipm.h>
+#include <drivers/clock_control.h>
 
 #include <shell/shell.h>
-#include <version.h>
-#include <drivers/uart.h>
-#include <usb/usb_device.h>
-#include <ctype.h>
 #include <shell/shell_uart.h>
+
+#include <version.h>
+
 #include <device.h>
+#include "lpm.h"
+
+#include "fsl_rdc.h"
+#include "fsl_gpc.h"
 
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
 
-#define RDC_DISABLE_A53_ACCESS		0xFC
-#define RDC_A53_READ_ONLY_ACCESS	0xFE
-#define DOMAIN_ID					(1U)
+#define M7_DOMAIN_ID (1U)
+#define A53_DOMAIN_ID (0U)
 
 /* Using SRC_GPR10 register to sync the tasks status with A core */
 #define ServiceFlagAddr SRC->GPR10
@@ -43,22 +39,27 @@
  * or not. If the task is runing, A core should not put DDR in self-refresh mode
  * after A core enters supsend.
  */
-#define ServiceBusy					(0x5555U)
-#define ServiceIdle					(0x0U)
+#define ServiceBusy (0x5555U)
+#define ServiceIdle (0x0U)
 
-#define DEBUG_UART_DEVICE			DT_NODELABEL(uart4)
-#define VOLUME_UP_BTN_NODE			DT_ALIAS(volumeupbtn)
-#define VOLUME_DOWN_BTN_NODE		DT_ALIAS(volumedownbtn)
-#define MU_CHANNEL					1U
+#define MU_CHANNEL 1U
+#define POLLING_TIMER_PERIOD_MS 50
 
-/* Types */
+/*******************************************************************************
+ * Types
+ ******************************************************************************/
 
-/*! @brief Shell state definition for the low power wakeup example */
-typedef enum _shell_state
-{
-	LPW_SHELL_STATE_UNINITIALIZED	= 0U,   /* Shell is uninitialized */
-	LPW_SHELL_STATE_INITIALIZING	= 1U,   /* Shell is initializing */
-	LPW_SHELL_STATE_INITIALIZED		= 2U    /* Shell is initialized */
-} lpw_shell_state_t;
+/* LPM state of M7 core */
+typedef enum {
+	LPM_M7_STATE_RUN,
+	LPM_M7_STATE_WAIT,
+	LPM_M7_STATE_STOP,
+} lpm_power_status_m7_t;
+
+/*******************************************************************************
+ * Function Declarations
+ ******************************************************************************/
+
+void wakeup_a_core();
 
 #endif // LOW_POWER_WAKEUP_H

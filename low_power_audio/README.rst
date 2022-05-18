@@ -73,8 +73,8 @@ NOTES
 4.  Please make sure that a target .wav file exists on the SD card. If the audio
     file is stored on the Windows FAT32 paritition, after the Linux kernel
     boots, and you've logged in as ``root``, mount the FAT32 partition using the
-    "``mount /dev/mmcblk1p1 /mnt``" command and then go to the ``/mnt`` folder to
-    playback the audio file using the playback command. If the audio file is
+    "``mount /dev/mmcblk1p1 /mnt``" command and then go to the ``/mnt`` folder
+    to playback the audio file using the playback command. If the audio file is
     stored on the Linux partition (e.g., ``/home``), you can playback the audio
     file directly using the playback command.
 
@@ -134,10 +134,18 @@ To playback a .wav file:
 
     .. code-block:: console
 
-        echo mem > /sys/power/state
+        systemctl suspend
 
-    Note: ensure that the A core has enough time to fill the audio buffer before
+    Note: Ensure that the A core has enough time to fill the audio buffer before
     entering into suspend mode.
+
+    After the specified ``buffer-time`` has expired, the A core will wake back
+    up and re-fill the audio buffer. At this point, you can again issue the
+    command to trigger the A core to enter suspend mode.
+
+    Note: Specifying a ``buffer-time`` greater than or equal to the length of
+    the audio file will result in the A core staying in suspend during the
+    entire playback duration.
 
 Running the Demo
 ****************
@@ -146,20 +154,12 @@ similar to the following:
 
 .. code-block:: console
 
-    *** Booting Zephyr OS build v3.0.0-rc1-239-g11cbaf46deae  ***
-
-    ####################  LOW POWER AUDIO TASK ####################
-
-        Build Time: Feb 15 2022--16:50:38 
-    ********************************
-    Wait for Linux kernel to boot up and create the link between M core and A core.
-
-    ********************************
-    The rpmsg channel created between M core and A core!
-    ********************************
-
-
-    Main thread is now running.
+    *** Booting Zephyr OS build zephyr-v2.7.1-133-gd0d4de7da9de  ***
+    LOW POWER AUDIO TASK
+    Build Time: Apr 22 2022--16:39:30
+    Wait for Linux kernel to boot up and create the link between M core and A core
+    RPMsg channel created between M core and A core
+    Main thread is now running
 
 Flashing and Booting the M7 Core
 ********************************

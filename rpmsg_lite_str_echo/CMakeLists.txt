@@ -16,20 +16,20 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project("RPMsg-Lite String Echo Example")
 
 target_sources(app PRIVATE
-    ${rpmsg_lite_dir}/lib/common/llist.c
-    ${rpmsg_lite_dir}/lib/rpmsg_lite/rpmsg_lite.c
-    ${rpmsg_lite_dir}/lib/rpmsg_lite/rpmsg_ns.c
-    ${rpmsg_lite_dir}/lib/rpmsg_lite/rpmsg_queue.c
-    ${rpmsg_lite_dir}/lib/virtio/virtqueue.c
-    ${CMAKE_SOURCE_DIR}/src/main.c
-    ${CMAKE_SOURCE_DIR}/src/rsc_table.c
-    ${CMAKE_SOURCE_DIR}/src/rpmsg_env_zephyr.c
-    ${CMAKE_SOURCE_DIR}/src/rpmsg_platform.c
+	${rpmsg_lite_dir}/lib/common/llist.c
+	${rpmsg_lite_dir}/lib/rpmsg_lite/rpmsg_lite.c
+	${rpmsg_lite_dir}/lib/rpmsg_lite/rpmsg_ns.c
+	${rpmsg_lite_dir}/lib/rpmsg_lite/rpmsg_queue.c
+	${rpmsg_lite_dir}/lib/virtio/virtqueue.c
+	${CMAKE_SOURCE_DIR}/src/main.c
+	${CMAKE_SOURCE_DIR}/src/rsc_table.c
+	${CMAKE_SOURCE_DIR}/src/rpmsg_env_zephyr.c
+	${CMAKE_SOURCE_DIR}/src/rpmsg_platform.c
 )
 
 include_directories(
 	${rpmsg_lite_dir}/lib/include
 	${rpmsg_lite_dir}/lib/include/environment/zephyr
-    ${rpmsg_lite_dir}/lib/include/platform/imx8mp_m7
-    ${CMAKE_SOURCE_DIR}/include
+	${rpmsg_lite_dir}/lib/include/platform/imx8mp_m7
+	${CMAKE_SOURCE_DIR}/include
 )

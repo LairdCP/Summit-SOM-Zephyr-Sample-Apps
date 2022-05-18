@@ -6,9 +6,15 @@
 
 menu "Low Power Wakeup Example"
 
-config IPC_DEV_NAME
-    string "IPC device name"
-    default "MU_B"
+config RPMSG_LITE_RESOURCE_TABLE
+	bool "Co-processor resource table"
+	help
+	  Add the resource table in the generated binary. This table is
+	  compatible with linux remote proc framework and RPMsg-Lite library.
+
+config RPMSG_LITE_IPC_DEV_NAME
+	string "RPMsg-Lite IPC device name"
+	default "MAILBOX_0"
 
 endmenu
 

@@ -58,19 +58,17 @@ NOTES
 
 Running the Demo
 ****************
-After the boot process succeeds, the ARM Cortex-M7 terminal displays a message
-similar to the following:
-
-    .. code-block:: console
-
-        [00:00:00.000,000] <inf> main: LOW POWER WAKEUP EXAMPLE
-        [00:00:00.000,000] <inf> main: Build Time: Mar 31 2022--09:48:03
-        uart:~$
-
-#.  Login to Linux with the standard username and password.
+#. After the boot process succeeds, login to Linux with the standard username
+   and password.
 
     * Username: root
     * Password: summit
+
+#.  At the M7 core terminal, the shell prompt will appear:
+
+    .. code-block:: console
+
+        uart:~$
 
 #.  At the Linux prompt, put the A core into the DSM state with the following
     command:
@@ -78,8 +76,8 @@ similar to the following:
     .. code-block:: bash
 
         systemctl suspend
-    
-    The board will enter into the DSM state.
+
+    The entire SOM is now in a low power state (A core and M7 core in DSM state).
 
 #. At the M7 core's shell prompt, type ``wakeup`` to trigger the A core to exit
    the DSM state. The A core will wake up, and the Linux prompt will reappear.
@@ -87,35 +85,6 @@ similar to the following:
     .. code-block:: console
 
         uart:~$ wakeup
-        [00:01:25.446,000] <inf> main: Sending signal to wake up the A core
-
-#.  At the Linux prompt, put the A core back into the DSM state with the
-    following command:
-
-    .. code-block:: bash
-
-        systemctl suspend
-    
-    The board will enter into the DSM state.
-
-#. At the M7 shell prompt, type ``sleep`` to trigger the M7 core to enter into a
-   low power state.
-
-    .. code-block:: console
-
-        uart:~$ sleep
-        Uninitializing shell, use volume buttons to reinitialize
-
-#.  Wake back up the M7 core by pressing either the Volume Down (S5) or Volume
-    Up (S6) button. The M7 core's shell will be reinitialized and reappear.
-
-#. At the M7 core's shell prompt, type ``wakeup`` to trigger the A core to exit
-   the DSM state. The A core will wake up, and the Linux prompt will reappear.
-
-    .. code-block:: console
-
-        uart:~$ wakeup
-        [00:01:25.446,000] <inf> main: Sending signal to wake up the A core
 
 Flashing and Booting the M7 Core
 ********************************

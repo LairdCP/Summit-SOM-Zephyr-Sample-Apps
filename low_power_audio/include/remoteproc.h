@@ -83,12 +83,11 @@ extern "C" {
  * each of which begins with a resource entry header (as described below).
  */
 METAL_PACKED_BEGIN
-struct resource_table
-{
-    uint32_t ver;
-    uint32_t num;
-    uint32_t reserved[2];
-    uint32_t offset[0];
+struct resource_table {
+	uint32_t ver;
+	uint32_t num;
+	uint32_t reserved[2];
+	uint32_t offset[0];
 } METAL_PACKED_END;
 
 /**
@@ -101,10 +100,9 @@ struct resource_table
  * this header, and it should be parsed according to the resource type.
  */
 METAL_PACKED_BEGIN
-struct fw_rsc_hdr
-{
-    uint32_t type;
-    uint8_t data[0];
+struct fw_rsc_hdr {
+	uint32_t type;
+	uint8_t data[0];
 } METAL_PACKED_END;
 
 /**
@@ -129,15 +127,14 @@ struct fw_rsc_hdr
  * check the validity of an index before the lookup table is accessed, so
  * please update it as needed.
  */
-enum fw_resource_type
-{
-    RSC_CARVEOUT     = 0,
-    RSC_DEVMEM       = 1,
-    RSC_TRACE        = 2,
-    RSC_VDEV         = 3,
-    RSC_LAST         = 4,
-    RSC_VENDOR_START = 128,
-    RSC_VENDOR_END   = 512,
+enum fw_resource_type {
+	RSC_CARVEOUT = 0,
+	RSC_DEVMEM = 1,
+	RSC_TRACE = 2,
+	RSC_VDEV = 3,
+	RSC_LAST = 4,
+	RSC_VENDOR_START = 128,
+	RSC_VENDOR_END = 512,
 };
 
 #define FW_RSC_U64_ADDR_ANY 0xFFFFFFFFFFFFFFFFUL
@@ -187,15 +184,14 @@ enum fw_resource_type
  * (mainly for debugging purposes).
  */
 METAL_PACKED_BEGIN
-struct fw_rsc_carveout
-{
-    uint32_t type;
-    uint32_t da;
-    uint32_t pa;
-    uint32_t len;
-    uint32_t flags;
-    uint32_t reserved;
-    uint8_t name[RPROC_MAX_NAME_LEN];
+struct fw_rsc_carveout {
+	uint32_t type;
+	uint32_t da;
+	uint32_t pa;
+	uint32_t len;
+	uint32_t flags;
+	uint32_t reserved;
+	uint8_t name[RPROC_MAX_NAME_LEN];
 } METAL_PACKED_END;
 
 /**
@@ -228,15 +224,14 @@ struct fw_rsc_carveout
  * access to physical addresses that are outside those ranges.
  */
 METAL_PACKED_BEGIN
-struct fw_rsc_devmem
-{
-    uint32_t type;
-    uint32_t da;
-    uint32_t pa;
-    uint32_t len;
-    uint32_t flags;
-    uint32_t reserved;
-    uint8_t name[RPROC_MAX_NAME_LEN];
+struct fw_rsc_devmem {
+	uint32_t type;
+	uint32_t da;
+	uint32_t pa;
+	uint32_t len;
+	uint32_t flags;
+	uint32_t reserved;
+	uint8_t name[RPROC_MAX_NAME_LEN];
 } METAL_PACKED_END;
 
 /**
@@ -256,13 +251,12 @@ struct fw_rsc_devmem
  * user via debugfs entries (called trace0, trace1, etc..).
  */
 METAL_PACKED_BEGIN
-struct fw_rsc_trace
-{
-    uint32_t type;
-    uint32_t da;
-    uint32_t len;
-    uint32_t reserved;
-    uint8_t name[RPROC_MAX_NAME_LEN];
+struct fw_rsc_trace {
+	uint32_t type;
+	uint32_t da;
+	uint32_t len;
+	uint32_t reserved;
+	uint8_t name[RPROC_MAX_NAME_LEN];
 } METAL_PACKED_END;
 
 /**
@@ -283,13 +277,12 @@ struct fw_rsc_trace
  * dynamically allocation of the vring's device address is supported.
  */
 METAL_PACKED_BEGIN
-struct fw_rsc_vdev_vring
-{
-    uint32_t da;
-    uint32_t align;
-    uint32_t num;
-    uint32_t notifyid;
-    uint32_t reserved;
+struct fw_rsc_vdev_vring {
+	uint32_t da;
+	uint32_t align;
+	uint32_t num;
+	uint32_t notifyid;
+	uint32_t reserved;
 } METAL_PACKED_END;
 
 /**
@@ -328,18 +321,17 @@ struct fw_rsc_vdev_vring
  * spec). the size of the config space is specified by @config_len.
  */
 METAL_PACKED_BEGIN
-struct fw_rsc_vdev
-{
-    uint32_t type;
-    uint32_t id;
-    uint32_t notifyid;
-    uint32_t dfeatures;
-    uint32_t gfeatures;
-    uint32_t config_len;
-    uint8_t status;
-    uint8_t num_of_vrings;
-    uint8_t reserved[2];
-    struct fw_rsc_vdev_vring vring[0];
+struct fw_rsc_vdev {
+	uint32_t type;
+	uint32_t id;
+	uint32_t notifyid;
+	uint32_t dfeatures;
+	uint32_t gfeatures;
+	uint32_t config_len;
+	uint8_t status;
+	uint8_t num_of_vrings;
+	uint8_t reserved[2];
+	struct fw_rsc_vdev_vring vring[0];
 } METAL_PACKED_END;
 
 /**
@@ -353,10 +345,9 @@ struct fw_rsc_vdev
  * such as vdevs, vrings.
  */
 METAL_PACKED_BEGIN
-struct fw_rsc_vendor
-{
-    uint32_t type;
-    uint32_t len;
+struct fw_rsc_vendor {
+	uint32_t type;
+	uint32_t len;
 } METAL_PACKED_END;
 
 #if defined __cplusplus

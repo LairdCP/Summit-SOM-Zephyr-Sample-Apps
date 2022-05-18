@@ -10,7 +10,7 @@
 		 * shared memory reserved for the inter-processor communication
 		 */
 		zephyr,ipc_shm = &vdevbuffer;
-		zephyr,ipc = &mub;
+		zephyr,ipc = &mailbox0;
 	};
 
 	vdevbuffer: memory1@55400000 {
@@ -19,10 +19,18 @@
 	};
 };
 
-&mub {
-	status ="okay";
+&mailbox0 {
+	status = "okay";
 };
 
-&gpio3 {
-	status ="okay";
+&gpt2 {
+	status = "okay";
+};
+
+&uart4 {
+	clock-rootmux = <0>;
+};
+
+&cpu0 {
+	cpu-power-states = <&run &wait &stop>;
 };

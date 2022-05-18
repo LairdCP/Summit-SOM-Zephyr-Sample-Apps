@@ -16,5 +16,5 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project("RGB Blinky Example")
 
 target_sources(app PRIVATE
-    ${CMAKE_SOURCE_DIR}/src/main.c
+	${CMAKE_SOURCE_DIR}/src/main.c
 )

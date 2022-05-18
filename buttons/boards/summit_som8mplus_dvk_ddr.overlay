@@ -5,5 +5,9 @@
  */
 
 &gpio3 {
-	status ="okay";
+	status = "okay";
+};
+
+&uart4 {
+	clock-rootmux = <0>;
 };

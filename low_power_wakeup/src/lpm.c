@@ -9,7 +9,7 @@
 #include <zephyr.h>
 #include "lpm.h"
 
-/* If block envent exists, then do not allow M7 to enter low power mode.*/
+/* If block envent exists, then do not allow M7 to enter low power mode. */
 static uint32_t block_event_count = 0;
 
 /*******************************************************************************

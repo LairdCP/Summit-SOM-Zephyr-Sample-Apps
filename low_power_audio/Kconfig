@@ -13,12 +13,12 @@ config RPMSG_LITE_RESOURCE_TABLE
 	  compatible with linux remote proc framework and RPMsg-Lite library.
 
 config RPMSG_LITE_IPC_DEV_NAME
-    string "RPMsg-Lite IPC device name"
-    default "MU_B"
+	string "RPMsg-Lite IPC device name"
+	default "MAILBOX_0"
 
 config RPMSG_LITE_APP_STACKSIZE
-    int "Application thread stack size"
-    default 4096
+	int "Application thread stack size"
+	default 4096
 
 endmenu
 
