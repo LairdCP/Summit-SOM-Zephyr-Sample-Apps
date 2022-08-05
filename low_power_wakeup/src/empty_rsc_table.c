@@ -23,6 +23,9 @@
 
 #include <stdint.h>
 
+#define VDEV0_VRING_BASE (0x55000000U)
+#define RESOURCE_TABLE_OFFSET (0xFF000)
+
 /* Place resource table in special ELF section */
 #if defined(__ARMCC_VERSION) || defined(__GNUC__)
 __attribute__((section(".resource_table")))
@@ -42,3 +45,14 @@ const uint32_t resource_table[] = {
 	/* reserved fields */
 	0, 0
 };
+
+void copy_resource_table(void)
+{
+	/*
+	* Resource table should be copied to VDEV0_VRING_BASE + RESOURCE_TABLE_OFFSET.
+	* VDEV0_VRING_BASE is temperorily kept for backward compatibility, will be removed in future
+	* release
+	*/
+	memcpy((void *)VDEV0_VRING_BASE, &resource_table, sizeof(resource_table));
+	memcpy((void *)(VDEV0_VRING_BASE + RESOURCE_TABLE_OFFSET), &resource_table, sizeof(resource_table));
+}

@@ -18,6 +18,8 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 static const struct device *ipm_handle;
 volatile bool wakeup_a_core_shell_flag = false;
 
+extern void copy_resource_table();
+
 /* Code */
 
 /**
@@ -305,6 +307,8 @@ void main(void)
 
 	/* Use RDC to configure peripheral access */
 	rdc_configure_peripheral_access();
+
+	copy_resource_table();
 
 	/*
 	 * In order to wakeup M7 from LPM, all PLLCTRLs need to be set to
