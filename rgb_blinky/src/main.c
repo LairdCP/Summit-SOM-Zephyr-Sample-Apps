@@ -64,6 +64,8 @@ LOG_MODULE_REGISTER(rgb_blinky, LOG_LEVEL_DBG);
 
 enum color { red, green, blue, magenta, yellow, cyan, white };
 
+extern void copy_resource_table();
+
 void rdc_configure_peripheral_access(void)
 {
 	rdc_domain_assignment_t assignment = { 0 };
@@ -97,6 +99,8 @@ void main(void)
 	int ret;
 
 	rdc_configure_peripheral_access();
+
+	copy_resource_table();
 
 	LOG_INF("RGB Blinky Demo");
 

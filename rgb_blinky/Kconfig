@@ -6,6 +6,12 @@
 
 menu "RGB Blinky Example"
 
+config RPMSG_LITE_RESOURCE_TABLE
+	bool "Co-processor resource table"
+	help
+	  Add the resource table in the generated binary. This table is
+	  compatible with linux remote proc framework and RPMsg-Lite library.
+
 endmenu
 
 module = RGB_BLINKY

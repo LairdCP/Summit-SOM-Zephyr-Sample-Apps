@@ -37,6 +37,8 @@ static const struct gpio_dt_spec volume_up_btn =
 static struct gpio_callback volume_down_btn_cb_data;
 static struct gpio_callback volume_up_btn_cb_data;
 
+extern void copy_resource_table();
+
 void rdc_configure_peripheral_access(void)
 {
 	rdc_domain_assignment_t assignment = { 0 };
@@ -74,6 +76,8 @@ void main(void)
 	LOG_INF("*** Buttons Demo Start ***");
 
 	rdc_configure_peripheral_access();
+
+	copy_resource_table();
 
 	if (!device_is_ready(volume_down_btn.port)) {
 		LOG_ERR("Error: button device %s is not ready", volume_down_btn.port->name);
